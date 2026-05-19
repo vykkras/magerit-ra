@@ -5,7 +5,7 @@ import { useCategoryStore } from '../../store/categoryStore';
 import { useQuestionnaireStore, type Answer, type Criticality } from '../../store/questionnaireStore';
 import { MAGERIT_THREATS } from '../../data/threats.data';
 import { CATALOG_BY_CODE } from '../../data/safeguards.data';
-import { CATEGORY_QUESTIONNAIRES } from '../../data/questionnaires.data';
+import { CATEGORY_QUESTIONNAIRES, type Question } from '../../data/questionnaires.data';
 import type { Category } from '../../store/categoryStore';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -125,7 +125,7 @@ function BadgeBtn({ code, name, description }: { code: string; name?: string; de
 
 async function downloadExcel(
   category: Category,
-  questions: ReturnType<(typeof CATEGORY_QUESTIONNAIRES)[string]>,
+  questions: Question[],
   categoryAnswers: Record<string, Answer>,
   critValue: Criticality,
   customQ: Record<string, string> = {},
