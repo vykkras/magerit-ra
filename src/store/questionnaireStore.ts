@@ -7,8 +7,11 @@ export type Criticality = 'baja' | 'media' | 'alta' | 'critica' | null;
 interface QuestionnaireStore {
   answers: Record<string, Record<string, Answer>>;
   criticality: Record<string, Criticality>;
+  customQuestions: Record<string, Record<string, string>>; // categoryId → questionId → custom text
   setAnswer: (categoryId: string, questionId: string, answer: Answer) => void;
   setCriticality: (categoryId: string, value: Criticality) => void;
+  setCustomQuestion: (categoryId: string, questionId: string, text: string) => void;
+  resetCustomQuestion: (categoryId: string, questionId: string) => void;
   resetCategory: (categoryId: string) => void;
 }
 
@@ -17,6 +20,7 @@ export const useQuestionnaireStore = create<QuestionnaireStore>()(
     (set) => ({
       answers: {},
       criticality: {},
+      customQuestions: {},
 
       setAnswer(categoryId, questionId, answer) {
         set(s => ({
@@ -33,13 +37,32 @@ export const useQuestionnaireStore = create<QuestionnaireStore>()(
         }));
       },
 
+      setCustomQuestion(categoryId, questionId, text) {
+        set(s => ({
+          customQuestions: {
+            ...s.customQuestions,
+            [categoryId]: { ...(s.customQuestions[categoryId] ?? {}), [questionId]: text },
+          },
+        }));
+      },
+
+      resetCustomQuestion(categoryId, questionId) {
+        set(s => {
+          const catQ = { ...(s.customQuestions[categoryId] ?? {}) };
+          delete catQ[questionId];
+          return { customQuestions: { ...s.customQuestions, [categoryId]: catQ } };
+        });
+      },
+
       resetCategory(categoryId) {
         set(s => {
           const nextA = { ...s.answers };
           const nextC = { ...s.criticality };
+          const nextQ = { ...s.customQuestions };
           delete nextA[categoryId];
           delete nextC[categoryId];
-          return { answers: nextA, criticality: nextC };
+          delete nextQ[categoryId];
+          return { answers: nextA, criticality: nextC, customQuestions: nextQ };
         });
       },
     }),

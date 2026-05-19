@@ -17,6 +17,76 @@ const CRIT_OPTIONS: { value: NonNullable<Criticality>; label: string }[] = [
   { value: 'critica', label: 'Crítica' },
 ];
 
+// ── Editable question cell ────────────────────────────────────────────────────
+
+function EditableQuestion({
+  categoryId, questionId, defaultText,
+}: { categoryId: string; questionId: string; defaultText: string }) {
+  const { customQuestions, setCustomQuestion, resetCustomQuestion } = useQuestionnaireStore();
+  const customText = customQuestions[categoryId]?.[questionId];
+  const displayText = customText ?? defaultText;
+  const isEdited = customText !== undefined && customText !== defaultText;
+
+  const [editing, setEditing] = useState(false);
+  const [draft,   setDraft]   = useState('');
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  function startEdit() {
+    setDraft(displayText);
+    setEditing(true);
+    setTimeout(() => taRef.current?.focus(), 0);
+  }
+
+  function save() {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== defaultText) {
+      setCustomQuestion(categoryId, questionId, trimmed);
+    } else {
+      resetCustomQuestion(categoryId, questionId);
+    }
+    setEditing(false);
+  }
+
+  function cancel() { setEditing(false); }
+
+  function handleKey(e: React.KeyboardEvent) {
+    if (e.key === 'Escape') cancel();
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) save();
+  }
+
+  if (editing) {
+    return (
+      <div>
+        <textarea
+          ref={taRef}
+          className={s.editArea}
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={handleKey}
+          rows={3}
+        />
+        <div className={s.editActions}>
+          <button className={s.btnSave}   onClick={save}>Guardar</button>
+          <button className={s.btnCancel} onClick={cancel}>Cancelar</button>
+          {isEdited && (
+            <button className={s.btnReset} onClick={() => { resetCustomQuestion(categoryId, questionId); setEditing(false); }}>
+              Restaurar original
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={s.questionCell}>
+      {isEdited && <span className={s.editedDot} title="Pregunta editada" />}
+      <span className={s.questionText}>{displayText}</span>
+      <button className={s.editBtn} onClick={startEdit} title="Editar pregunta">✏</button>
+    </div>
+  );
+}
+
 // ── Expandable badge ──────────────────────────────────────────────────────────
 
 function BadgeBtn({ code, name, description }: { code: string; name?: string; description?: string }) {
@@ -58,6 +128,7 @@ async function downloadExcel(
   questions: ReturnType<(typeof CATEGORY_QUESTIONNAIRES)[string]>,
   categoryAnswers: Record<string, Answer>,
   critValue: Criticality,
+  customQ: Record<string, string> = {},
 ) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'MAGERIT Risk';
@@ -107,7 +178,7 @@ async function downloadExcel(
     const raw         = categoryAnswers[q.id] ?? null;
     const answerLabel = raw === 'yes' ? 'Si' : raw === 'no' ? 'No' : raw === 'na' ? 'N/A' : '';
     const row = ws.addRow([
-      q.text,
+      customQ[q.id] ?? q.text,
       answerLabel,
       q.riskRefs.join(', '),
       q.safeguardRefs.map(sc => `${sc} – ${CATALOG_BY_CODE[sc]?.name ?? sc}`).join('\n'),
@@ -191,7 +262,7 @@ function DBModal({ category, onClose }: { category: Category; onClose: () => voi
 
 export default function CategoriesPage() {
   const { categories } = useCategoryStore();
-  const { answers, criticality, setAnswer, setCriticality } = useQuestionnaireStore();
+  const { answers, criticality, customQuestions, setAnswer, setCriticality } = useQuestionnaireStore();
 
   const [activeIdx, setActiveIdx] = useState(0);
   const [showDB,    setShowDB]    = useState(false);
@@ -200,6 +271,7 @@ export default function CategoriesPage() {
   const questions       = CATEGORY_QUESTIONNAIRES[category?.id] ?? [];
   const categoryAnswers = answers[category?.id] ?? {};
   const critValue       = criticality[category?.id] ?? null;
+  const customQ         = customQuestions[category?.id] ?? {};
 
   const yesCount = questions.filter(q => categoryAnswers[q.id] === 'yes').length;
   const pct      = questions.length > 0 ? Math.round((yesCount / questions.length) * 100) : 0;
@@ -264,7 +336,7 @@ export default function CategoriesPage() {
             <button className={s.btnSecondary} onClick={() => setShowDB(true)}>
               Ver BD
             </button>
-            <button className={s.btnExcel} onClick={() => downloadExcel(category, questions, categoryAnswers, critValue)}>
+            <button className={s.btnExcel} onClick={() => downloadExcel(category, questions, categoryAnswers, critValue, customQ)}>
               <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12v6m0 0l-3-3m3 3l3-3M12 3v9" />
               </svg>
@@ -315,7 +387,13 @@ export default function CategoriesPage() {
                     key={q.id}
                     className={current === 'yes' ? s.rowYes : current === 'no' ? s.rowNo : ''}
                   >
-                    <td>{q.text}</td>
+                    <td>
+                      <EditableQuestion
+                        categoryId={category.id}
+                        questionId={q.id}
+                        defaultText={q.text}
+                      />
+                    </td>
 
                     <td>
                       <div className={s.answerBtns}>

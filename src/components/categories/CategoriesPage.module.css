@@ -309,6 +309,107 @@
   line-height: 1.5;
 }
 
+/* ── Editable question cell ─────────────────────────────────────────────────── */
+
+.questionCell {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  position: relative;
+}
+
+.questionText {
+  flex: 1;
+  line-height: 1.5;
+}
+
+.editedDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #1a2e5c;
+  flex-shrink: 0;
+  margin-top: 6px;
+  title: 'Pregunta editada';
+}
+
+.editBtn {
+  flex-shrink: 0;
+  margin-top: 1px;
+  padding: 3px 6px;
+  border: none;
+  background: none;
+  color: #cbd5e1;
+  cursor: pointer;
+  border-radius: 5px;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.table tbody tr:hover .editBtn { opacity: 1; }
+.editBtn:hover { color: #475569; background: #f1f5f9; }
+
+.editArea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #1a2e5c;
+  border-radius: 7px;
+  font-size: 13.5px;
+  font-family: inherit;
+  line-height: 1.5;
+  color: #1e293b;
+  resize: vertical;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(26,46,92,0.1);
+  min-height: 60px;
+}
+
+.editActions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.btnSave {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: none;
+  background: #1a2e5c;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btnSave:hover { background: #0f1c3d; }
+
+.btnCancel {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btnCancel:hover { border-color: #94a3b8; color: #1e293b; }
+
+.btnReset {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid #fee2e2;
+  background: #fff;
+  color: #dc2626;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-left: auto;
+}
+.btnReset:hover { background: #fee2e2; }
+
 /* ── DB Modal ───────────────────────────────────────────────────────────────── */
 
 .overlay {
