@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import ExcelJS from 'exceljs';
 import s from './CategoriesPage.module.css';
 import { useCategoryStore } from '../../store/categoryStore';
@@ -16,6 +16,40 @@ const CRIT_OPTIONS: { value: NonNullable<Criticality>; label: string }[] = [
   { value: 'alta',    label: 'Alta' },
   { value: 'critica', label: 'Crítica' },
 ];
+
+// ── Expandable badge ──────────────────────────────────────────────────────────
+
+function BadgeBtn({ code, name, description }: { code: string; name?: string; description?: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ display: 'inline-block', position: 'relative' }}>
+      <button
+        className={`${s.badgeBtn} ${open ? s.badgeBtnOpen : ''}`}
+        onClick={() => setOpen(o => !o)}
+      >
+        {code}
+      </button>
+      {open && (name || description) && (
+        <div className={s.badgePopup}>
+          <p className={s.badgePopupCode}>{code}</p>
+          {name        && <p className={s.badgePopupName}>{name}</p>}
+          {description && <p className={s.badgePopupDesc}>{description}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Excel export ──────────────────────────────────────────────────────────────
 
@@ -309,12 +343,9 @@ export default function CategoriesPage() {
                     <td>
                       <div className={s.badgeWrap}>
                         {q.riskRefs.map(code => {
-                          const name = MAGERIT_THREATS.find(t => t.code === code)?.name;
+                          const t = MAGERIT_THREATS.find(x => x.code === code);
                           return (
-                            <span key={code} className={s.riskBadge}>
-                              <span className={s.riskCode}>{code}</span>
-                              {name && <span className={s.riskName}>{name}</span>}
-                            </span>
+                            <BadgeBtn key={code} code={code} name={t?.name} description={t?.description} />
                           );
                         })}
                       </div>
@@ -323,12 +354,9 @@ export default function CategoriesPage() {
                     <td>
                       <div className={s.badgeWrap}>
                         {q.safeguardRefs.map(sc => {
-                          const name = CATALOG_BY_CODE[sc]?.name;
+                          const sg = CATALOG_BY_CODE[sc];
                           return (
-                            <span key={sc} className={s.sgBadge}>
-                              <span className={s.sgCode}>{sc}</span>
-                              {name && <span className={s.sgName}>{name}</span>}
-                            </span>
+                            <BadgeBtn key={sc} code={sc} name={sg?.name} description={sg?.description} />
                           );
                         })}
                       </div>
