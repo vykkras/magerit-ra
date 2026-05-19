@@ -6,10 +6,10 @@
 import { useEffect, useRef } from 'react';
 import type { Risk } from '../../types';
 import { useRiskStore, getCriticality, type CriticalityLevel } from '../../store/riskStore';
-import { THREATS_BY_CODE, FREQUENCY_LABELS, GROUP_LABELS } from '../../data/threats.data';
+import { THREATS_BY_CODE, GROUP_LABELS } from '../../data/threats.data';
 import {
   CriticalityBadge, StatusBadge, ThreatGroupBadge,
-  DimensionBadge, FrequencyBadge, RiskValue,
+  DimensionBadge, FrequencyBadge,
 } from './RiskBadges';
 
 interface Props {

@@ -10,8 +10,8 @@
 
 import { useState, useMemo } from 'react';
 import {
-  useMappingStore, calcCombinedEff, getRiskLevel,
-  type Mapping, type MappingSafeguard, type RiskLevel,
+  useMappingStore, getRiskLevel,
+  type Mapping, type RiskLevel,
 } from '../../store/mappingStore';
 import { MAGERIT_THREATS, GROUP_LABELS } from '../../data/threats.data';
 import { SAFEGUARD_CATALOG, CATALOG_BY_CODE, FAMILY_META, SAFEGUARD_FAMILIES } from '../../data/safeguards.data';
