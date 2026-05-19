@@ -108,8 +108,7 @@ async function downloadQuestionnaireExcel(
   ws.getCell(`C${critRow.number}`).dataValidation = {
     type: 'list',
     allowBlank: false,
-    formulae: ['"Baja,Media,Alta,Crítica"'],
-    showDropDown: false,
+    formulae: ['"Baja,Media,Alta,Critica"'],
   };
 
   const critColors: Record<string, string> = {
@@ -124,11 +123,11 @@ async function downloadQuestionnaireExcel(
   ws.addRow([]);
 
   // ── Question rows ──
-  const ANSWER_VALUES = '"Sí,No,N/A"';
+  const ANSWER_VALUES = '"Si,No,N/A"';
 
   questions.forEach((q, i) => {
     const raw = categoryAnswers[q.id] ?? null;
-    const answerLabel = raw === 'yes' ? 'Sí' : raw === 'no' ? 'No' : raw === 'na' ? 'N/A' : '';
+    const answerLabel = raw === 'yes' ? 'Si' : raw === 'no' ? 'No' : raw === 'na' ? 'N/A' : '';
 
     const threats    = q.riskRefs.join(', ');
     const safeguards = q.safeguardRefs
@@ -151,18 +150,17 @@ async function downloadQuestionnaireExcel(
       type: 'list',
       allowBlank: true,
       formulae: [ANSWER_VALUES],
-      showDropDown: false,
     };
 
     // Row color by answer
     const rowFill =
-      answerLabel === 'Sí'  ? 'FFF0FDF4' :
+      answerLabel === 'Si'  ? 'FFF0FDF4' :
       answerLabel === 'No'  ? 'FFFEF2F2' :
       answerLabel === 'N/A' ? 'FFF8FAFC' :
       'FFFFFFFF';
 
     const answerFontColor =
-      answerLabel === 'Sí'  ? 'FF16A34A' :
+      answerLabel === 'Si'  ? 'FF16A34A' :
       answerLabel === 'No'  ? 'FFDC2626' :
       'FF94A3B8';
 
