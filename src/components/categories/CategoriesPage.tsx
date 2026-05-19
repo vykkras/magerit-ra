@@ -135,7 +135,10 @@ function DBModal({ category, onClose }: { category: Category; onClose: () => voi
                 {threat?.description && <p className={s.riskDesc}>{threat.description}</p>}
                 <div className={s.sgList}>
                   {risk.safeguardCodes.map(sc => (
-                    <span key={sc} className={s.sgItem} title={CATALOG_BY_CODE[sc]?.name}>{sc}</span>
+                    <span key={sc} className={s.sgItem}>
+                      <strong style={{ fontFamily: 'monospace' }}>{sc}</strong>
+                      {CATALOG_BY_CODE[sc]?.name ? ` · ${CATALOG_BY_CODE[sc].name}` : ''}
+                    </span>
                   ))}
                   {risk.safeguardCodes.length === 0 && (
                     <span style={{ fontSize: 12, color: '#cbd5e1', fontStyle: 'italic' }}>Sin salvaguardas</span>
@@ -305,21 +308,29 @@ export default function CategoriesPage() {
 
                     <td>
                       <div className={s.badgeWrap}>
-                        {q.riskRefs.map(code => (
-                          <span key={code} className={s.riskBadge} title={MAGERIT_THREATS.find(t => t.code === code)?.name}>
-                            {code}
-                          </span>
-                        ))}
+                        {q.riskRefs.map(code => {
+                          const name = MAGERIT_THREATS.find(t => t.code === code)?.name;
+                          return (
+                            <span key={code} className={s.riskBadge}>
+                              <span className={s.riskCode}>{code}</span>
+                              {name && <span className={s.riskName}>{name}</span>}
+                            </span>
+                          );
+                        })}
                       </div>
                     </td>
 
                     <td>
                       <div className={s.badgeWrap}>
-                        {q.safeguardRefs.map(sc => (
-                          <span key={sc} className={s.sgBadge} title={CATALOG_BY_CODE[sc]?.name}>
-                            {sc}
-                          </span>
-                        ))}
+                        {q.safeguardRefs.map(sc => {
+                          const name = CATALOG_BY_CODE[sc]?.name;
+                          return (
+                            <span key={sc} className={s.sgBadge}>
+                              <span className={s.sgCode}>{sc}</span>
+                              {name && <span className={s.sgName}>{name}</span>}
+                            </span>
+                          );
+                        })}
                       </div>
                     </td>
                   </tr>
