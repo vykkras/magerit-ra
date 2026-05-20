@@ -55,7 +55,6 @@ export default function CuestionarioPreliminar() {
       {/* Decision diamond: ¿Es herramienta de IA? */}
       <div className={s.diamond}>
         <div className={s.diamondTop}>
-          <span className={s.diamondIcon}>◆</span>
           <span className={s.diamondLabel}>Decisión</span>
         </div>
         <p className={s.diamondQuestion}>¿Es una herramienta de Inteligencia Artificial?</p>
@@ -76,7 +75,6 @@ export default function CuestionarioPreliminar() {
 
         {esHerramientaIA === true && (
           <div className={s.policyNote}>
-            <span className={s.policyIcon}>ℹ️</span>
             <div>
               <p className={s.policyTitle}>Aplica política interna de IA</p>
               <p className={s.policyText}>

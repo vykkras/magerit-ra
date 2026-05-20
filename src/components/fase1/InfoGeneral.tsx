@@ -9,7 +9,6 @@ export default function InfoGeneral() {
 
       {/* Header */}
       <div className={s.headerCard}>
-        <div className={s.headerIcon}>📋</div>
         <div>
           <p className={s.headerTitle}>Información General de la Solicitud</p>
           <p className={s.headerSub}>Completa los datos antes de iniciar el proceso MAINS</p>
@@ -66,7 +65,6 @@ export default function InfoGeneral() {
       {/* Decision diamond: ¿Es Solución ICT? */}
       <div className={s.diamond}>
         <div className={s.diamondTop}>
-          <span className={s.diamondIcon}>◆</span>
           <span className={s.diamondLabel}>Decisión</span>
         </div>
         <p className={s.diamondQuestion}>¿Es una Solución Proveedor-Servicio ICT?</p>
@@ -87,7 +85,6 @@ export default function InfoGeneral() {
 
         {esSolucionICT === false && (
           <div className={s.outOfScope}>
-            <span className={s.outOfScopeIcon}>⚠️</span>
             <div>
               <p className={s.outOfScopeTitle}>Fuera del alcance del MAINS</p>
               <p className={s.outOfScopeText}>
