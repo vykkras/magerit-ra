@@ -254,6 +254,7 @@ function BadgeBtn({ code, name, description }: { code: string; name?: string; de
 // ── Risk scenario table ───────────────────────────────────────────────────────
 
 const PIP_ACTIVE = [s.pip1Active, s.pip2Active, s.pip3Active, s.pip4Active] as const;
+const RESIDUAL_CLS = [s.rBadge1, s.rBadge2, s.rBadge3, s.rBadge4] as const;
 
 function ScorePip({ value, onSelect }: { value: 1|2|3|4|null; onSelect: (v: 1|2|3|4) => void }) {
   return (
@@ -271,63 +272,140 @@ function ScorePip({ value, onSelect }: { value: 1|2|3|4|null; onSelect: (v: 1|2|
   );
 }
 
-function ScenarioTable({ category }: { category: Category }) {
+function computeRiskStatus(
+  threatCode: string,
+  questions: Question[],
+  categoryAnswers: Record<string, Answer>
+) {
+  const covering = questions.filter(q => q.riskRefs.includes(threatCode));
+  if (covering.length === 0) return { yesCount: 0, isExcluded: false };
+  const yesCount   = covering.filter(q => categoryAnswers[q.id] === 'yes').length;
+  const naCount    = covering.filter(q => categoryAnswers[q.id] === 'na').length;
+  const isExcluded = naCount === covering.length;
+  return { yesCount, isExcluded };
+}
+
+function ScenarioTable({
+  category,
+  questions,
+  categoryAnswers,
+}: {
+  category: Category;
+  questions: Question[];
+  categoryAnswers: Record<string, Answer>;
+}) {
   const { scenarios, updateRow } = useRiskScenarioStore();
   const rows = scenarios[category.id] ?? [];
 
+  // Enrich each row with computed residual impact
+  const enriched = rows.map(row => {
+    const { yesCount, isExcluded } = computeRiskStatus(row.threatCode, questions, categoryAnswers);
+    const imp = row.inherentImpact;
+    const residual: 1|2|3|4|null = isExcluded
+      ? null
+      : imp !== null ? (Math.max(1, imp - yesCount) as 1|2|3|4) : null;
+    return { ...row, isExcluded, residual };
+  });
+
+  // Risk totals (probability × impact)
+  const countable = enriched.filter(r => !r.isExcluded && r.probability !== null && r.inherentImpact !== null);
+  const totalInherent = countable.reduce((sum, r) => sum + r.probability! * r.inherentImpact!, 0);
+  const totalResidual = countable.reduce((sum, r) => sum + r.probability! * (r.residual ?? r.inherentImpact!), 0);
+  const excludedCount = enriched.filter(r => r.isExcluded).length;
+  const reduction     = totalInherent > 0 ? Math.round((1 - totalResidual / totalInherent) * 100) : 0;
+
   return (
-    <div className={s.tableCard}>
-      <table className={s.table}>
-        <thead>
-          <tr>
-            <th style={{ width: '14%' }}>Riesgo ID</th>
-            <th style={{ width: '16%' }}>Probabilidad (1–4)</th>
-            <th style={{ width: '16%' }}>Impacto inherente (1–4)</th>
-            <th style={{ width: '30%' }}>Salvaguarda aplicable</th>
-            <th style={{ width: '16%' }}>Impacto residual (1–4)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(row => (
-            <tr key={row.id}>
-              <td>
-                <select
-                  className={s.sgSelect}
-                  value={row.threatCode}
-                  onChange={e => updateRow(category.id, row.id, { threatCode: e.target.value })}
-                >
-                  <option value="">—</option>
-                  {MAGERIT_THREATS.map(t => (
-                    <option key={t.code} value={t.code}>{t.code} · {t.name}</option>
-                  ))}
-                </select>
-              </td>
-              <td>
-                <ScorePip value={row.probability} onSelect={v => updateRow(category.id, row.id, { probability: v })} />
-              </td>
-              <td>
-                <ScorePip value={row.inherentImpact} onSelect={v => updateRow(category.id, row.id, { inherentImpact: v })} />
-              </td>
-              <td>
-                <select
-                  className={s.sgSelect}
-                  value={row.applicableSafeguard}
-                  onChange={e => updateRow(category.id, row.id, { applicableSafeguard: e.target.value })}
-                >
-                  <option value="">—</option>
-                  {Object.entries(CATALOG_BY_CODE).map(([sc, sg]) => (
-                    <option key={sc} value={sc}>{sc} · {(sg as { name: string }).name}</option>
-                  ))}
-                </select>
-              </td>
-              <td>
-                <ScorePip value={row.residualImpact} onSelect={v => updateRow(category.id, row.id, { residualImpact: v })} />
-              </td>
+    <>
+      {/* ── Risk summary ── */}
+      <div className={s.riskSummary}>
+        <div className={s.summaryItem}>
+          <span className={`${s.summaryValue} ${s.scoreRed}`}>{totalInherent}</span>
+          <span className={s.summaryLabel}>Riesgo inherente total</span>
+        </div>
+        <div className={s.divider} />
+        <div className={s.summaryItem}>
+          <span className={`${s.summaryValue} ${reduction >= 25 ? s.scoreGreen : s.scoreYellow}`}>{totalResidual}</span>
+          <span className={s.summaryLabel}>Riesgo residual total</span>
+        </div>
+        <div className={s.divider} />
+        <div className={s.summaryItem}>
+          <span className={`${s.summaryValue} ${reduction >= 25 ? s.scoreGreen : s.scoreYellow}`}>{reduction}%</span>
+          <span className={s.summaryLabel}>Reducción de riesgo</span>
+        </div>
+        {excludedCount > 0 && (
+          <>
+            <div className={s.divider} />
+            <div className={s.summaryItem}>
+              <span className={s.summaryValue} style={{ color: '#94a3b8' }}>{excludedCount}</span>
+              <span className={s.summaryLabel}>Excluidos (N/A)</span>
+            </div>
+          </>
+        )}
+        <span className={s.summaryNote}>Riesgo = probabilidad × impacto</span>
+      </div>
+
+      {/* ── Scenario table ── */}
+      <div className={s.tableCard}>
+        <table className={s.table}>
+          <thead>
+            <tr>
+              <th style={{ width: '14%' }}>Riesgo ID</th>
+              <th style={{ width: '16%' }}>Probabilidad (1–4)</th>
+              <th style={{ width: '16%' }}>Impacto inherente (1–4)</th>
+              <th style={{ width: '30%' }}>Salvaguarda aplicable</th>
+              <th style={{ width: '14%' }}>Impacto residual</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {enriched.map(row => (
+              <tr key={row.id} className={row.isExcluded ? s.rowExcluded : ''}>
+                <td>
+                  <select
+                    className={s.sgSelect}
+                    value={row.threatCode}
+                    onChange={e => updateRow(category.id, row.id, { threatCode: e.target.value })}
+                  >
+                    <option value="">—</option>
+                    {MAGERIT_THREATS.map(t => (
+                      <option key={t.code} value={t.code}>{t.code} · {t.name}</option>
+                    ))}
+                  </select>
+                </td>
+                <td>
+                  <ScorePip value={row.probability} onSelect={v => updateRow(category.id, row.id, { probability: v })} />
+                </td>
+                <td>
+                  <ScorePip value={row.inherentImpact} onSelect={v => updateRow(category.id, row.id, { inherentImpact: v })} />
+                </td>
+                <td>
+                  <select
+                    className={s.sgSelect}
+                    value={row.applicableSafeguard}
+                    onChange={e => updateRow(category.id, row.id, { applicableSafeguard: e.target.value })}
+                  >
+                    <option value="">—</option>
+                    {Object.entries(CATALOG_BY_CODE).map(([sc, sg]) => (
+                      <option key={sc} value={sc}>{sc} · {(sg as { name: string }).name}</option>
+                    ))}
+                  </select>
+                </td>
+                <td>
+                  {row.isExcluded ? (
+                    <span className={s.residualNa}>N/A</span>
+                  ) : row.residual !== null ? (
+                    <span className={`${s.residualBadge} ${RESIDUAL_CLS[row.residual - 1]}`}>
+                      {row.residual}
+                    </span>
+                  ) : (
+                    <span style={{ color: '#cbd5e1' }}>—</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 
@@ -588,7 +666,13 @@ export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?
         </div>
 
         {/* Scenario table */}
-        {view === 'scenario' && <ScenarioTable category={category} />}
+        {view === 'scenario' && (
+          <ScenarioTable
+            category={category}
+            questions={questions}
+            categoryAnswers={categoryAnswers}
+          />
+        )}
 
         {/* Questionnaire table card */}
         {view === 'questionnaire' && (
