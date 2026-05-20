@@ -137,64 +137,97 @@ function computeResidualImpact(
 }
 
 export default function App() {
-  const [page, setPage] = useState<PageId>('home');
-  const solicitud = useSolicitudStore();
+  const [page, setPage]               = useState<PageId>('home');
+  const [editingId, setEditingId]     = useState<string | null>(null);
+  const solicitud                     = useSolicitudStore();
   const { categoriaId, esHerramientaIA } = solicitud;
-  const { answers }     = useQuestionnaireStore();
-  const { scenarios }   = useRiskScenarioStore();
-  const { categories }  = useCategoryStore();
-  const { add: addCompleted } = useCompletedStore();
-  const questionnaireStore    = useQuestionnaireStore();
+  const questionnaireStore            = useQuestionnaireStore();
+  const { answers, criticality, customQuestions, customRiskRefs, customSafeguardRefs, extraQuestions } = questionnaireStore;
+  const scenarioStore                 = useRiskScenarioStore();
+  const { scenarios }                 = scenarioStore;
+  const { categories }                = useCategoryStore();
+  const { add: addCompleted, update: updateCompleted, remove: removeCompleted } = useCompletedStore();
   const done = useCompletionStatus();
 
-  function completeProcess() {
-    // Aggregate stats across all categories
+  function buildSnapshot() {
     let totalAnswered = 0, totalQ = 0, totalYes = 0;
-    let totalInherent = 0, totalResidual = 0, scorable = 0;
+    let totalInherent = 0, totalResidual = 0;
 
     categories.forEach(cat => {
-      const questions    = CATEGORY_QUESTIONNAIRES[cat.id] ?? [];
-      const catAnswers   = answers[cat.id] ?? {};
-      const catAnswered  = questions.filter(q => catAnswers[q.id] != null).length;
+      const questions   = CATEGORY_QUESTIONNAIRES[cat.id] ?? [];
+      const catAnswers  = answers[cat.id] ?? {};
+      const catAnswered = questions.filter(q => catAnswers[q.id] != null).length;
       totalQ        += questions.length;
       totalAnswered += catAnswered;
       totalYes      += questions.filter(q => catAnswers[q.id] === 'yes').length;
-
-      // only include scenario risk if the user has actually answered questions in this category
       if (catAnswered === 0) return;
-      const rows = scenarios[cat.id] ?? [];
-      rows.forEach(row => {
+      (scenarios[cat.id] ?? []).forEach(row => {
         if (row.inherentImpact === null || row.probability === null) return;
-        const res = computeResidualImpact(row.threatCode, questions, catAnswers as Record<string,string>, row.inherentImpact);
+        const res = computeResidualImpact(row.threatCode, questions, catAnswers as Record<string, string>, row.inherentImpact);
         totalInherent += row.probability * row.inherentImpact;
         totalResidual += row.probability * res;
-        scorable++;
       });
     });
 
     const compliance = totalQ > 0 ? Math.round((totalYes / totalQ) * 100) : 0;
     const reduction  = totalInherent > 0 ? Math.round((1 - totalResidual / totalInherent) * 100) : 0;
 
-    addCompleted({
-      id:             crypto.randomUUID(),
-      completedAt:    new Date().toISOString(),
-      solicitante:    solicitud.solicitante,
-      proveedor:      solicitud.proveedor,
-      departamento:   solicitud.departamento,
-      referenciaPST:  solicitud.referenciaPST,
-      categoriaId:    solicitud.categoriaId,
+    const { set: _set, reset: _reset, ...solicitudData } = solicitud;
+
+    return {
+      solicitante:     solicitud.solicitante,
+      proveedor:       solicitud.proveedor,
+      departamento:    solicitud.departamento,
+      referenciaPST:   solicitud.referenciaPST,
+      categoriaId:     solicitud.categoriaId,
       esHerramientaIA: solicitud.esHerramientaIA,
       totalAnswered,
-      totalQuestions: totalQ,
+      totalQuestions:  totalQ,
       compliance,
-      totalInherent:  Math.round(totalInherent * 10) / 10,
-      totalResidual:  Math.round(totalResidual * 10) / 10,
+      totalInherent:   Math.round(totalInherent * 10) / 10,
+      totalResidual:   Math.round(totalResidual * 10) / 10,
       reduction,
-    });
+      snapshot: {
+        solicitud:          { solicitante: solicitud.solicitante, proveedor: solicitud.proveedor, departamento: solicitud.departamento, referenciaPST: solicitud.referenciaPST, fechaSolicitud: solicitud.fechaSolicitud, descripcion: solicitud.descripcion, departamento: solicitud.departamento, esSolucionICT: solicitud.esSolucionICT, categoriaId: solicitud.categoriaId, esHerramientaIA: solicitud.esHerramientaIA },
+        answers,
+        criticality,
+        customQuestions,
+        customRiskRefs,
+        customSafeguardRefs,
+        extraQuestions,
+        scenarios,
+      },
+    };
+  }
 
+  function completeProcess() {
+    const data = buildSnapshot();
+    if (editingId) {
+      updateCompleted(editingId, { ...data, id: editingId, completedAt: new Date().toISOString() });
+      setEditingId(null);
+    } else {
+      addCompleted({ ...data, id: crypto.randomUUID(), completedAt: new Date().toISOString() });
+    }
     solicitud.reset();
-    questionnaireStore.resetCategory && categories.forEach(c => questionnaireStore.resetCategory(c.id));
+    categories.forEach(c => questionnaireStore.resetCategory(c.id));
     setPage('home');
+  }
+
+  function reopenEvaluation(ev: import('./store/completedStore').CompletedEvaluation) {
+    const { snapshot } = ev;
+    solicitud.set(snapshot.solicitud);
+    questionnaireStore.loadState({
+      answers:            snapshot.answers,
+      criticality:        snapshot.criticality,
+      customQuestions:    snapshot.customQuestions,
+      customRiskRefs:     snapshot.customRiskRefs,
+      customSafeguardRefs: snapshot.customSafeguardRefs,
+      extraQuestions:     snapshot.extraQuestions,
+    });
+    scenarioStore.loadState(snapshot.scenarios);
+    removeCompleted(ev.id);
+    setEditingId(ev.id);
+    setPage('solicitud');
   }
 
   const currentItem    = ALL_ITEMS.find(i => i.id === page);
@@ -202,7 +235,7 @@ export default function App() {
 
   function renderContent() {
     switch (page) {
-      case 'home':        return <HomePage onStart={() => setPage('solicitud')} />;
+      case 'home':        return <HomePage onStart={() => setPage('solicitud')} onReopen={reopenEvaluation} />;
       case 'solicitud':   return <InfoGeneral />;
       case 'preliminar':  return <CuestionarioPreliminar />;
       case 'avanzado':
@@ -330,7 +363,7 @@ export default function App() {
           {/* ── Complete button ── */}
           <div className={s.sidebarFooter}>
             <button className={s.completeBtn} onClick={completeProcess}>
-              Marcar como completado
+              {editingId ? 'Guardar cambios' : 'Marcar como completado'}
             </button>
           </div>
 

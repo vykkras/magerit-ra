@@ -17,7 +17,7 @@ function StatCard({ label, value, sub, color }: {
   );
 }
 
-function CompletedRow({ ev, onRemove }: { ev: CompletedEvaluation; onRemove: () => void }) {
+function CompletedRow({ ev, onRemove, onReopen }: { ev: CompletedEvaluation; onRemove: () => void; onReopen: () => void }) {
   const date = new Date(ev.completedAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
   return (
     <div className={s.completedRow}>
@@ -36,12 +36,13 @@ function CompletedRow({ ev, onRemove }: { ev: CompletedEvaluation; onRemove: () 
       <span className={s.completedCell}>
         <span className={`${s.pct} ${ev.reduction >= 25 ? s.pctGreen : s.pctYellow}`}>{ev.reduction}%</span>
       </span>
+      <button className={s.openBtn} onClick={onReopen}>Abrir</button>
       <button className={s.removeBtn} onClick={onRemove} title="Eliminar">×</button>
     </div>
   );
 }
 
-export default function HomePage({ onStart }: { onStart: () => void }) {
+export default function HomePage({ onStart, onReopen }: { onStart: () => void; onReopen: (ev: CompletedEvaluation) => void }) {
   const { categories }          = useCategoryStore();
   const { answers }             = useQuestionnaireStore();
   const { evaluations, remove } = useCompletedStore();
@@ -123,9 +124,10 @@ export default function HomePage({ onStart }: { onStart: () => void }) {
                 <span>Residual</span>
                 <span>Reducción</span>
                 <span />
+                <span />
               </div>
               {evaluations.map(ev => (
-                <CompletedRow key={ev.id} ev={ev} onRemove={() => remove(ev.id)} />
+                <CompletedRow key={ev.id} ev={ev} onRemove={() => remove(ev.id)} onReopen={() => onReopen(ev)} />
               ))}
             </div>
           ) : (

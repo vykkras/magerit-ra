@@ -11,6 +11,7 @@ interface RiskScenarioStore {
   updateRow: (categoryId: string, rowId: string, updates: RowUpdate) => void;
   addRow: (categoryId: string) => void;
   removeRow: (categoryId: string, rowId: string) => void;
+  loadState: (scenarios: Record<string, ScenarioRow[]>) => void;
   resetCategory: (categoryId: string) => void;
 }
 
@@ -56,6 +57,10 @@ export const useRiskScenarioStore = create<RiskScenarioStore>()(
             [categoryId]: (s.scenarios[categoryId] ?? []).filter(r => r.id !== rowId),
           },
         }));
+      },
+
+      loadState(scenarios) {
+        set(() => ({ scenarios }));
       },
 
       resetCategory(categoryId) {

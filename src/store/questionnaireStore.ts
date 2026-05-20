@@ -31,6 +31,14 @@ interface QuestionnaireStore {
   removeExtraQuestion: (categoryId: string, questionId: string) => void;
   clearAnswers: (categoryId: string) => void;
   resetCategory: (categoryId: string) => void;
+  loadState: (state: {
+    answers: Record<string, Record<string, Answer>>;
+    criticality: Record<string, Criticality>;
+    customQuestions: Record<string, Record<string, string>>;
+    customRiskRefs: Record<string, Record<string, string[]>>;
+    customSafeguardRefs: Record<string, Record<string, string[]>>;
+    extraQuestions: Record<string, ExtraQuestion[]>;
+  }) => void;
 }
 
 export const useQuestionnaireStore = create<QuestionnaireStore>()(
@@ -148,6 +156,10 @@ export const useQuestionnaireStore = create<QuestionnaireStore>()(
           delete nextC[categoryId];
           return { answers: nextA, criticality: nextC };
         });
+      },
+
+      loadState(state) {
+        set(() => ({ ...state }));
       },
 
       resetCategory(categoryId) {
