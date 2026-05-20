@@ -133,6 +133,19 @@
 
 .divider { width: 1px; height: 28px; background: #e2e8f0; }
 
+.btnClear {
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  background: #fff5f5;
+  font-size: 13px;
+  font-weight: 600;
+  color: #dc2626;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btnClear:hover { background: #fee2e2; border-color: #f87171; }
+
 .btnSecondary {
   padding: 9px 18px;
   border-radius: 8px;

@@ -18,6 +18,7 @@ interface QuestionnaireStore {
   resetCustomRiskRefs: (categoryId: string, questionId: string) => void;
   setCustomSafeguardRefs: (categoryId: string, questionId: string, codes: string[]) => void;
   resetCustomSafeguardRefs: (categoryId: string, questionId: string) => void;
+  clearAnswers: (categoryId: string) => void;
   resetCategory: (categoryId: string) => void;
 }
 
@@ -93,6 +94,16 @@ export const useQuestionnaireStore = create<QuestionnaireStore>()(
           const cat = { ...(s.customSafeguardRefs[categoryId] ?? {}) };
           delete cat[questionId];
           return { customSafeguardRefs: { ...s.customSafeguardRefs, [categoryId]: cat } };
+        });
+      },
+
+      clearAnswers(categoryId) {
+        set(s => {
+          const nextA = { ...s.answers };
+          const nextC = { ...s.criticality };
+          delete nextA[categoryId];
+          delete nextC[categoryId];
+          return { answers: nextA, criticality: nextC };
         });
       },
 

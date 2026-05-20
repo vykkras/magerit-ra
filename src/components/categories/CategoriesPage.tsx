@@ -568,7 +568,7 @@ function DBModal({ category, onClose }: { category: Category; onClose: () => voi
 
 export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?: string } = {}) {
   const { categories } = useCategoryStore();
-  const { answers, criticality, customQuestions, customRiskRefs, customSafeguardRefs, setAnswer, setCriticality } = useQuestionnaireStore();
+  const { answers, criticality, customQuestions, customRiskRefs, customSafeguardRefs, setAnswer, setCriticality, clearAnswers } = useQuestionnaireStore();
 
   const lockedIdx = lockedCategoryId ? categories.findIndex(c => c.id === lockedCategoryId) : -1;
   const [activeIdx, setActiveIdx] = useState(lockedIdx >= 0 ? lockedIdx : 0);
@@ -664,6 +664,11 @@ export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?
                 <span className={`${s.scoreLabel} ${scoreClass}`}>{pct}%</span>
                 <div className={s.divider} />
               </>
+            )}
+            {view === 'questionnaire' && Object.keys(categoryAnswers).length > 0 && (
+              <button className={s.btnClear} onClick={() => clearAnswers(category.id)}>
+                Limpiar respuestas
+              </button>
             )}
             <button className={s.btnSecondary} onClick={() => setShowDB(true)}>
               Ver BD
