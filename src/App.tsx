@@ -151,7 +151,7 @@ export default function App() {
       {/* ── Header ── */}
       <header className={s.header}>
         <div className={s.headerBrand}>
-          <div className={s.headerLogo}>M</div>
+          <img src="/logo.png" alt="Capgemini" className={s.headerLogo} />
           <div>
             <p className={s.headerName}>M.A.I.N.S.</p>
             <p className={s.headerSub}>Gestión de Riesgos · Ciberseguridad · Cumplimiento</p>
