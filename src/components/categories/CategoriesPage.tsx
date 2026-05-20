@@ -300,7 +300,7 @@ function ScenarioTable({
   questions: Question[];
   categoryAnswers: Record<string, Answer>;
 }) {
-  const { scenarios, updateRow, addRow } = useRiskScenarioStore();
+  const { scenarios, updateRow, addRow, removeRow } = useRiskScenarioStore();
   const rows = scenarios[category.id] ?? [];
 
   // Enrich each row with computed residual impact + question coverage info
@@ -356,11 +356,12 @@ function ScenarioTable({
         <table className={s.table}>
           <thead>
             <tr>
-              <th style={{ width: '14%' }}>Riesgo ID</th>
-              <th style={{ width: '16%' }}>Probabilidad (1–4)</th>
-              <th style={{ width: '16%' }}>Impacto inherente (1–4)</th>
-              <th style={{ width: '30%' }}>Salvaguarda aplicable</th>
-              <th style={{ width: '14%' }}>Impacto residual</th>
+              <th style={{ width: '13%' }}>Riesgo ID</th>
+              <th style={{ width: '15%' }}>Probabilidad (1–4)</th>
+              <th style={{ width: '15%' }}>Impacto inherente (1–4)</th>
+              <th style={{ width: '29%' }}>Salvaguarda aplicable</th>
+              <th style={{ width: '13%' }}>Impacto residual</th>
+              <th style={{ width: '3%' }} />
             </tr>
           </thead>
           <tbody>
@@ -418,6 +419,9 @@ function ScenarioTable({
                       <span className={s.pillUncovered} title="Sin preguntas del cuestionario que cubran este riesgo">sin cobertura</span>
                     )}
                   </div>
+                </td>
+                <td>
+                  <button className={s.removeExtraBtn} onClick={() => removeRow(category.id, row.id)} title="Eliminar fila">×</button>
                 </td>
               </tr>
             ))}
