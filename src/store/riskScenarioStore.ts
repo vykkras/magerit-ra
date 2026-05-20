@@ -4,7 +4,7 @@ import { buildDefaultScenarios, type ScenarioRow } from '../data/scenarios.data'
 
 const CAT_IDS = ['low-impact-it', 'saas', 'saas-ai', 'paas-iaas', 'it-outsourcing'];
 
-type RowUpdate = Partial<Pick<ScenarioRow, 'probability' | 'inherentImpact' | 'applicableSafeguard' | 'residualImpact'>>;
+type RowUpdate = Partial<Pick<ScenarioRow, 'threatCode' | 'probability' | 'inherentImpact' | 'applicableSafeguard' | 'residualImpact'>>;
 
 interface RiskScenarioStore {
   scenarios: Record<string, ScenarioRow[]>;

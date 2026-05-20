@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import ExcelJS from 'exceljs';
 import s from './CategoriesPage.module.css';
-import { useCategoryStore, getCategorySafeguards } from '../../store/categoryStore';
+import { useCategoryStore } from '../../store/categoryStore';
 import { useQuestionnaireStore, type Answer, type Criticality } from '../../store/questionnaireStore';
 import { useRiskScenarioStore } from '../../store/riskScenarioStore';
 import { MAGERIT_THREATS } from '../../data/threats.data';
@@ -274,25 +274,33 @@ function ScorePip({ value, onSelect }: { value: 1|2|3|4|null; onSelect: (v: 1|2|
 function ScenarioTable({ category }: { category: Category }) {
   const { scenarios, updateRow } = useRiskScenarioStore();
   const rows = scenarios[category.id] ?? [];
-  const safeguards = getCategorySafeguards(category);
 
   return (
     <div className={s.tableCard}>
       <table className={s.table}>
         <thead>
           <tr>
-            <th style={{ width: '9%' }}>Riesgo ID</th>
-            <th style={{ width: '19%' }}>Probabilidad (1–4)</th>
-            <th style={{ width: '19%' }}>Impacto inherente (1–4)</th>
-            <th style={{ width: '28%' }}>Salvaguarda aplicable</th>
-            <th style={{ width: '19%' }}>Impacto residual (1–4)</th>
+            <th style={{ width: '14%' }}>Riesgo ID</th>
+            <th style={{ width: '16%' }}>Probabilidad (1–4)</th>
+            <th style={{ width: '16%' }}>Impacto inherente (1–4)</th>
+            <th style={{ width: '30%' }}>Salvaguarda aplicable</th>
+            <th style={{ width: '16%' }}>Impacto residual (1–4)</th>
           </tr>
         </thead>
         <tbody>
           {rows.map(row => (
             <tr key={row.id}>
               <td>
-                <span className={s.riskCode}>{row.threatCode || '—'}</span>
+                <select
+                  className={s.sgSelect}
+                  value={row.threatCode}
+                  onChange={e => updateRow(category.id, row.id, { threatCode: e.target.value })}
+                >
+                  <option value="">—</option>
+                  {MAGERIT_THREATS.map(t => (
+                    <option key={t.code} value={t.code}>{t.code} · {t.name}</option>
+                  ))}
+                </select>
               </td>
               <td>
                 <ScorePip value={row.probability} onSelect={v => updateRow(category.id, row.id, { probability: v })} />
@@ -307,10 +315,8 @@ function ScenarioTable({ category }: { category: Category }) {
                   onChange={e => updateRow(category.id, row.id, { applicableSafeguard: e.target.value })}
                 >
                   <option value="">—</option>
-                  {safeguards.map(sc => (
-                    <option key={sc} value={sc}>
-                      {sc}{(CATALOG_BY_CODE[sc] as { name?: string } | undefined)?.name ? ` · ${(CATALOG_BY_CODE[sc] as { name: string }).name}` : ''}
-                    </option>
+                  {Object.entries(CATALOG_BY_CODE).map(([sc, sg]) => (
+                    <option key={sc} value={sc}>{sc} · {(sg as { name: string }).name}</option>
                   ))}
                 </select>
               </td>
