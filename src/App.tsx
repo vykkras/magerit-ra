@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import s from './App.module.css';
 import { useSolicitudStore } from './store/solicitudStore';
+import HomePage from './components/home/HomePage';
 import InfoGeneral from './components/fase1/InfoGeneral';
 import CuestionarioPreliminar from './components/fase1/CuestionarioPreliminar';
 import CategoriesPage from './components/categories/CategoriesPage';
@@ -9,6 +10,7 @@ import PendingPage from './components/common/PendingPage';
 // ── Navigation model ──────────────────────────────────────────────────────────
 
 type PageId =
+  | 'home'
   | 'solicitud'
   | 'preliminar'
   | 'categorizacion'
@@ -118,7 +120,7 @@ function StatusDot({ done }: { done: boolean }) {
 // ── App ───────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [page, setPage] = useState<PageId>('solicitud');
+  const [page, setPage] = useState<PageId>('home');
   const { categoriaId } = useSolicitudStore();
   const done = useCompletionStatus();
 
@@ -127,6 +129,7 @@ export default function App() {
 
   function renderContent() {
     switch (page) {
+      case 'home':        return <HomePage onStart={() => setPage('solicitud')} />;
       case 'solicitud':   return <InfoGeneral />;
       case 'preliminar':  return <CuestionarioPreliminar />;
       case 'avanzado':    return <CategoriesPage lockedCategoryId={categoriaId ?? undefined} />;
@@ -150,13 +153,13 @@ export default function App() {
 
       {/* ── Header ── */}
       <header className={s.header}>
-        <div className={s.headerBrand}>
+        <button className={s.headerBrand} onClick={() => setPage('home')}>
           <img src="/logo.png" alt="Capgemini" className={s.headerLogo} />
           <div>
             <p className={s.headerName}>M.A.I.N.S.</p>
             <p className={s.headerSub}>Gestión de Riesgos · Ciberseguridad · Cumplimiento</p>
           </div>
-        </div>
+        </button>
 
         <div className={s.headerCrumb}>
           {currentSection ? (
@@ -182,8 +185,8 @@ export default function App() {
       {/* ── Body ── */}
       <div className={s.body}>
 
-        {/* ── Sidebar ── */}
-        <nav className={s.sidebar}>
+        {/* ── Sidebar (hidden on home) ── */}
+        {page === 'home' ? null : <nav className={s.sidebar}>
 
           {/* Pre-phase item: Información General */}
           <div className={s.sidebarSection}>
@@ -236,7 +239,7 @@ export default function App() {
               })}
             </div>
           ))}
-        </nav>
+        </nav>}
 
         {/* ── Content ── */}
         <main className={s.content}>
