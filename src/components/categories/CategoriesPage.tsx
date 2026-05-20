@@ -113,6 +113,7 @@ function EditableRefs({
   const [open,   setOpen]   = useState(false);
   const [search, setSearch] = useState('');
   const [draft,  setDraft]  = useState<string[]>([]);
+  const [flipUp, setFlipUp] = useState(false);
   const ref       = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -129,6 +130,10 @@ function EditableRefs({
 
   function openEditor() {
     setDraft([...currentCodes]);
+    if (ref.current) {
+      const spaceBelow = window.innerHeight - ref.current.getBoundingClientRect().bottom;
+      setFlipUp(spaceBelow < 340);
+    }
     setOpen(true);
     setTimeout(() => searchRef.current?.focus(), 0);
   }
@@ -180,7 +185,7 @@ function EditableRefs({
       </div>
 
       {open && (
-        <div className={s.refsPopover}>
+        <div className={s.refsPopover} style={flipUp ? { top: 'auto', bottom: 'calc(100% + 4px)' } : undefined}>
           <input
             ref={searchRef}
             className={s.refsSearch}
