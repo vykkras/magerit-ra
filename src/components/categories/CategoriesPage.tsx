@@ -278,11 +278,12 @@ function computeRiskStatus(
   categoryAnswers: Record<string, Answer>
 ) {
   const covering = questions.filter(q => q.riskRefs.includes(threatCode));
-  if (covering.length === 0) return { yesCount: 0, isExcluded: false };
-  const yesCount   = covering.filter(q => categoryAnswers[q.id] === 'yes').length;
-  const naCount    = covering.filter(q => categoryAnswers[q.id] === 'na').length;
-  const isExcluded = naCount === covering.length;
-  return { yesCount, isExcluded };
+  if (covering.length === 0) return { yesCount: 0, noCount: 0, naCount: 0, total: 0, isExcluded: false };
+  const yesCount = covering.filter(q => categoryAnswers[q.id] === 'yes').length;
+  const noCount  = covering.filter(q => categoryAnswers[q.id] === 'no').length;
+  const naCount  = covering.filter(q => categoryAnswers[q.id] === 'na').length;
+  const isExcluded = naCount > 0 && naCount === covering.length;
+  return { yesCount, noCount, naCount, total: covering.length, isExcluded };
 }
 
 function ScenarioTable({
@@ -297,14 +298,15 @@ function ScenarioTable({
   const { scenarios, updateRow } = useRiskScenarioStore();
   const rows = scenarios[category.id] ?? [];
 
-  // Enrich each row with computed residual impact
+  // Enrich each row with computed residual impact + question coverage info
   const enriched = rows.map(row => {
-    const { yesCount, isExcluded } = computeRiskStatus(row.threatCode, questions, categoryAnswers);
+    const status = computeRiskStatus(row.threatCode, questions, categoryAnswers);
+    const { yesCount, noCount, naCount, total, isExcluded } = status;
     const imp = row.inherentImpact;
     const residual: 1|2|3|4|null = isExcluded
       ? null
       : imp !== null ? (Math.max(1, imp - yesCount) as 1|2|3|4) : null;
-    return { ...row, isExcluded, residual };
+    return { ...row, isExcluded, residual, yesCount, noCount, naCount, total };
   });
 
   // Risk totals (probability × impact)
@@ -390,15 +392,27 @@ function ScenarioTable({
                   </select>
                 </td>
                 <td>
-                  {row.isExcluded ? (
-                    <span className={s.residualNa}>N/A</span>
-                  ) : row.residual !== null ? (
-                    <span className={`${s.residualBadge} ${RESIDUAL_CLS[row.residual - 1]}`}>
-                      {row.residual}
-                    </span>
-                  ) : (
-                    <span style={{ color: '#cbd5e1' }}>—</span>
-                  )}
+                  <div className={s.residualCell}>
+                    {row.isExcluded ? (
+                      <span className={s.residualNa}>N/A</span>
+                    ) : row.residual !== null ? (
+                      <span className={`${s.residualBadge} ${RESIDUAL_CLS[row.residual - 1]}`}>
+                        {row.residual}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#cbd5e1' }}>—</span>
+                    )}
+                    {row.total > 0 && (
+                      <span className={s.coveragePills}>
+                        {row.yesCount > 0 && <span className={s.pillYes}>✓{row.yesCount}</span>}
+                        {row.noCount  > 0 && <span className={s.pillNo}>✗{row.noCount}</span>}
+                        {row.naCount  > 0 && <span className={s.pillNa}>–{row.naCount}</span>}
+                      </span>
+                    )}
+                    {row.total === 0 && (
+                      <span className={s.pillUncovered} title="Sin preguntas del cuestionario que cubran este riesgo">sin cobertura</span>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
