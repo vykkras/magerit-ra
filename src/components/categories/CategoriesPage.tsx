@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import ExcelJS from 'exceljs';
 import s from './CategoriesPage.module.css';
-import { useCategoryStore } from '../../store/categoryStore';
+import { useCategoryStore, getCategorySafeguards } from '../../store/categoryStore';
 import { useQuestionnaireStore, type Answer, type Criticality } from '../../store/questionnaireStore';
+import { useRiskScenarioStore } from '../../store/riskScenarioStore';
 import { MAGERIT_THREATS } from '../../data/threats.data';
 import { CATALOG_BY_CODE } from '../../data/safeguards.data';
 import { CATEGORY_QUESTIONNAIRES, type Question } from '../../data/questionnaires.data';
@@ -250,6 +251,80 @@ function BadgeBtn({ code, name, description }: { code: string; name?: string; de
   );
 }
 
+// ── Risk scenario table ───────────────────────────────────────────────────────
+
+const PIP_ACTIVE = [s.pip1Active, s.pip2Active, s.pip3Active, s.pip4Active] as const;
+
+function ScorePip({ value, onSelect }: { value: 1|2|3|4|null; onSelect: (v: 1|2|3|4) => void }) {
+  return (
+    <div className={s.pipRow}>
+      {([1, 2, 3, 4] as const).map(n => (
+        <button
+          key={n}
+          onClick={() => onSelect(n)}
+          className={`${s.pip} ${value === n ? PIP_ACTIVE[n - 1] : ''}`}
+        >
+          {n}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ScenarioTable({ category }: { category: Category }) {
+  const { scenarios, updateRow } = useRiskScenarioStore();
+  const rows = scenarios[category.id] ?? [];
+  const safeguards = getCategorySafeguards(category);
+
+  return (
+    <div className={s.tableCard}>
+      <table className={s.table}>
+        <thead>
+          <tr>
+            <th style={{ width: '9%' }}>Riesgo ID</th>
+            <th style={{ width: '19%' }}>Probabilidad (1–4)</th>
+            <th style={{ width: '19%' }}>Impacto inherente (1–4)</th>
+            <th style={{ width: '28%' }}>Salvaguarda aplicable</th>
+            <th style={{ width: '19%' }}>Impacto residual (1–4)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(row => (
+            <tr key={row.id}>
+              <td>
+                <span className={s.riskCode}>{row.threatCode || '—'}</span>
+              </td>
+              <td>
+                <ScorePip value={row.probability} onSelect={v => updateRow(category.id, row.id, { probability: v })} />
+              </td>
+              <td>
+                <ScorePip value={row.inherentImpact} onSelect={v => updateRow(category.id, row.id, { inherentImpact: v })} />
+              </td>
+              <td>
+                <select
+                  className={s.sgSelect}
+                  value={row.applicableSafeguard}
+                  onChange={e => updateRow(category.id, row.id, { applicableSafeguard: e.target.value })}
+                >
+                  <option value="">—</option>
+                  {safeguards.map(sc => (
+                    <option key={sc} value={sc}>
+                      {sc}{(CATALOG_BY_CODE[sc] as { name?: string } | undefined)?.name ? ` · ${(CATALOG_BY_CODE[sc] as { name: string }).name}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </td>
+              <td>
+                <ScorePip value={row.residualImpact} onSelect={v => updateRow(category.id, row.id, { residualImpact: v })} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ── Excel export ──────────────────────────────────────────────────────────────
 
 async function downloadExcel(
@@ -399,6 +474,7 @@ export default function CategoriesPage() {
 
   const [activeIdx, setActiveIdx] = useState(0);
   const [showDB,    setShowDB]    = useState(false);
+  const [view, setView] = useState<'questionnaire' | 'scenario'>('questionnaire');
 
   const category        = categories[activeIdx];
   const questions       = CATEGORY_QUESTIONNAIRES[category?.id] ?? [];
@@ -450,38 +526,65 @@ export default function CategoriesPage() {
 
         {/* Toolbar card */}
         <div className={s.toolbar}>
-          <div className={s.toolbarSection}>
-            <span className={s.toolbarLabel}>Criticidad:</span>
-            <div className={s.critBtns}>
-              {CRIT_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => setCriticality(category.id, critValue === opt.value ? null : opt.value)}
-                  className={`${s.critBtn} ${critValue === opt.value ? s.critBtnActive : ''}`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+          {/* View toggle */}
+          <div className={s.viewToggle}>
+            <button
+              className={`${s.viewBtn} ${view === 'questionnaire' ? s.viewBtnActive : ''}`}
+              onClick={() => setView('questionnaire')}
+            >
+              Cuestionario
+            </button>
+            <button
+              className={`${s.viewBtn} ${view === 'scenario' ? s.viewBtnActive : ''}`}
+              onClick={() => setView('scenario')}
+            >
+              Escenario de riesgo
+            </button>
           </div>
 
+          {view === 'questionnaire' && (
+            <div className={s.toolbarSection}>
+              <span className={s.toolbarLabel}>Criticidad:</span>
+              <div className={s.critBtns}>
+                {CRIT_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setCriticality(category.id, critValue === opt.value ? null : opt.value)}
+                    className={`${s.critBtn} ${critValue === opt.value ? s.critBtnActive : ''}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className={s.toolbarRight}>
-            <span className={`${s.scoreLabel} ${scoreClass}`}>{pct}%</span>
-            <div className={s.divider} />
+            {view === 'questionnaire' && (
+              <>
+                <span className={`${s.scoreLabel} ${scoreClass}`}>{pct}%</span>
+                <div className={s.divider} />
+              </>
+            )}
             <button className={s.btnSecondary} onClick={() => setShowDB(true)}>
               Ver BD
             </button>
-            <button className={s.btnExcel} onClick={() => downloadExcel(category, questions, categoryAnswers, critValue, customQ, customRR, customSR)}>
-              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12v6m0 0l-3-3m3 3l3-3M12 3v9" />
-              </svg>
-              Descargar Excel
-            </button>
+            {view === 'questionnaire' && (
+              <button className={s.btnExcel} onClick={() => downloadExcel(category, questions, categoryAnswers, critValue, customQ, customRR, customSR)}>
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12v6m0 0l-3-3m3 3l3-3M12 3v9" />
+                </svg>
+                Descargar Excel
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Table card */}
-        <div className={s.tableCard}>
+        {/* Scenario table */}
+        {view === 'scenario' && <ScenarioTable category={category} />}
+
+        {/* Questionnaire table card */}
+        {view === 'questionnaire' && <div className={s.tableCard}>
           <table className={s.table}>
             <thead>
               <tr>
