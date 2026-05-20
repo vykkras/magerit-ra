@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import s from './App.module.css';
 import { useSolicitudStore } from './store/solicitudStore';
+import { useQuestionnaireStore } from './store/questionnaireStore';
+import { useRiskScenarioStore } from './store/riskScenarioStore';
+import { useCompletedStore } from './store/completedStore';
+import { useCategoryStore } from './store/categoryStore';
+import { CATEGORY_QUESTIONNAIRES, type Question } from './data/questionnaires.data';
 import HomePage from './components/home/HomePage';
 import InfoGeneral from './components/fase1/InfoGeneral';
 import CuestionarioPreliminar from './components/fase1/CuestionarioPreliminar';
@@ -119,10 +124,75 @@ function StatusDot({ done }: { done: boolean }) {
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
+function computeResidualImpact(
+  threatCode: string,
+  questions: Question[],
+  categoryAnswers: Record<string, string>,
+  inherentImpact: number
+): number {
+  const covering = questions.filter(q => q.riskRefs.includes(threatCode));
+  if (covering.length === 0) return inherentImpact;
+  const yesCount = covering.filter(q => categoryAnswers[q.id] === 'yes').length;
+  return Math.max(1, inherentImpact - yesCount);
+}
+
 export default function App() {
   const [page, setPage] = useState<PageId>('home');
-  const { categoriaId } = useSolicitudStore();
+  const solicitud = useSolicitudStore();
+  const { categoriaId } = solicitud;
+  const { answers }     = useQuestionnaireStore();
+  const { scenarios }   = useRiskScenarioStore();
+  const { categories }  = useCategoryStore();
+  const { add: addCompleted } = useCompletedStore();
+  const questionnaireStore    = useQuestionnaireStore();
   const done = useCompletionStatus();
+
+  function completeProcess() {
+    // Aggregate stats across all categories
+    let totalAnswered = 0, totalQ = 0, totalYes = 0;
+    let totalInherent = 0, totalResidual = 0, scorable = 0;
+
+    categories.forEach(cat => {
+      const questions    = CATEGORY_QUESTIONNAIRES[cat.id] ?? [];
+      const catAnswers   = answers[cat.id] ?? {};
+      totalQ        += questions.length;
+      totalAnswered += questions.filter(q => catAnswers[q.id] != null).length;
+      totalYes      += questions.filter(q => catAnswers[q.id] === 'yes').length;
+
+      const rows = scenarios[cat.id] ?? [];
+      rows.forEach(row => {
+        if (row.inherentImpact === null || row.probability === null) return;
+        const res = computeResidualImpact(row.threatCode, questions, catAnswers as Record<string,string>, row.inherentImpact);
+        totalInherent += row.probability * row.inherentImpact;
+        totalResidual += row.probability * res;
+        scorable++;
+      });
+    });
+
+    const compliance = totalQ > 0 ? Math.round((totalYes / totalQ) * 100) : 0;
+    const reduction  = totalInherent > 0 ? Math.round((1 - totalResidual / totalInherent) * 100) : 0;
+
+    addCompleted({
+      id:             crypto.randomUUID(),
+      completedAt:    new Date().toISOString(),
+      solicitante:    solicitud.solicitante,
+      proveedor:      solicitud.proveedor,
+      departamento:   solicitud.departamento,
+      referenciaPST:  solicitud.referenciaPST,
+      categoriaId:    solicitud.categoriaId,
+      esHerramientaIA: solicitud.esHerramientaIA,
+      totalAnswered,
+      totalQuestions: totalQ,
+      compliance,
+      totalInherent:  Math.round(totalInherent * 10) / 10,
+      totalResidual:  Math.round(totalResidual * 10) / 10,
+      reduction,
+    });
+
+    solicitud.reset();
+    questionnaireStore.resetCategory && categories.forEach(c => questionnaireStore.resetCategory(c.id));
+    setPage('home');
+  }
 
   const currentItem    = ALL_ITEMS.find(i => i.id === page);
   const currentSection = NAV.find(sec => sec.items.some(i => i.id === page));
@@ -239,6 +309,14 @@ export default function App() {
               })}
             </div>
           ))}
+
+          {/* ── Complete button ── */}
+          <div className={s.sidebarFooter}>
+            <button className={s.completeBtn} onClick={completeProcess}>
+              Marcar como completado
+            </button>
+          </div>
+
         </nav>}
 
         {/* ── Content ── */}
