@@ -38,6 +38,6 @@ export const useRiskScenarioStore = create<RiskScenarioStore>()(
         }));
       },
     }),
-    { name: 'magerit-risk-scenarios-v1' }
+    { name: 'magerit-risk-scenarios-v2' }
   )
 );

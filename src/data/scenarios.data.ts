@@ -55,35 +55,26 @@ export function buildDefaultScenarios(categoryId: string): ScenarioRow[] {
     });
   });
 
-  const rows: ScenarioRow[] = threats.map((tc, i) => {
-    const sgs  = riskToSg.get(tc) ?? [];
-    const sg   = sgs[0] ?? '';
-    const prob = (THREAT_PROB[tc] ?? 2) as 1|2|3|4;
-    const imp  = (THREAT_IMPACT[tc] ?? 2) as 1|2|3|4;
-    return {
-      id: `${categoryId}-${i}`,
-      threatCode: tc,
-      probability: prob,
-      inherentImpact: imp,
-      applicableSafeguard: sg,
-      residualImpact: sg ? clamp(imp - 1) : imp,
-    };
-  });
+  const rows: ScenarioRow[] = threats.map((tc, i) => ({
+    id: `${categoryId}-${i}`,
+    threatCode: tc,
+    probability: null,
+    inherentImpact: null,
+    applicableSafeguard: '',
+    residualImpact: null,
+  }));
 
-  // Pad to 20 with secondary sub-scenarios (alternate safeguard, +1 probability variant)
+  // Pad to 20 with blank secondary rows
   let padIdx = 0;
   while (rows.length < 20) {
-    const tc  = threats[padIdx % threats.length];
-    const sgs = riskToSg.get(tc) ?? [];
-    const sg  = sgs.length > 1 ? sgs[1] : (sgs[0] ?? '');
-    const imp = (THREAT_IMPACT[tc] ?? 2) as 1|2|3|4;
+    const tc = threats[padIdx % threats.length];
     rows.push({
       id: `${categoryId}-x${padIdx}`,
       threatCode: tc,
-      probability: clamp((THREAT_PROB[tc] ?? 2) + 1),
-      inherentImpact: imp,
-      applicableSafeguard: sg,
-      residualImpact: sg ? clamp(imp - 1) : imp,
+      probability: null,
+      inherentImpact: null,
+      applicableSafeguard: '',
+      residualImpact: null,
     });
     padIdx++;
   }
