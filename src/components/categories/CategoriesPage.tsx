@@ -344,7 +344,7 @@ async function downloadExcel(
 ) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'MAGERIT Risk';
-  const ws = wb.addWorksheet(category.name.slice(0, 31));
+  const ws = wb.addWorksheet(category.name.replace(/[\\/*?:[\]]/g, '-').slice(0, 31));
 
   ws.columns = [
     { width: 60 },
