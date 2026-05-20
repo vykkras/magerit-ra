@@ -167,6 +167,11 @@
 .sidebarItemActive  .sidebarLabel { color: #1a2e5c; font-weight: 600; }
 .sidebarItemPending .sidebarLabel { color: #94a3b8; }
 
+.doneDot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #16a34a; flex-shrink: 0;
+}
+
 .sidebarPendingTag {
   font-size: 9px;
   font-weight: 700;

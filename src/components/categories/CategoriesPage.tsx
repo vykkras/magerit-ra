@@ -474,11 +474,12 @@ function DBModal({ category, onClose }: { category: Category; onClose: () => voi
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-export default function CategoriesPage() {
+export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?: string } = {}) {
   const { categories } = useCategoryStore();
   const { answers, criticality, customQuestions, customRiskRefs, customSafeguardRefs, setAnswer, setCriticality } = useQuestionnaireStore();
 
-  const [activeIdx, setActiveIdx] = useState(0);
+  const lockedIdx = lockedCategoryId ? categories.findIndex(c => c.id === lockedCategoryId) : -1;
+  const [activeIdx, setActiveIdx] = useState(lockedIdx >= 0 ? lockedIdx : 0);
   const [showDB,    setShowDB]    = useState(false);
   const [view, setView] = useState<'questionnaire' | 'scenario'>('questionnaire');
 
@@ -504,8 +505,8 @@ export default function CategoriesPage() {
   return (
     <div className={s.page}>
 
-      {/* ── Tabs ── */}
-      <div className={s.tabs}>
+      {/* ── Tabs (hidden when category locked from Preliminar) ── */}
+      {!lockedCategoryId && <div className={s.tabs}>
         {categories.map((c, i) => {
           const qs   = CATEGORY_QUESTIONNAIRES[c.id] ?? [];
           const cAns = answers[c.id] ?? {};
@@ -525,7 +526,7 @@ export default function CategoriesPage() {
             </button>
           );
         })}
-      </div>
+      </div>}
 
       {/* ── Content ── */}
       <div className={s.content}>

@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import s from './App.module.css';
+import { useSolicitudStore } from './store/solicitudStore';
+import InfoGeneral from './components/fase1/InfoGeneral';
+import CuestionarioPreliminar from './components/fase1/CuestionarioPreliminar';
 import CategoriesPage from './components/categories/CategoriesPage';
 import PendingPage from './components/common/PendingPage';
 
 // ── Navigation model ──────────────────────────────────────────────────────────
 
 type PageId =
+  | 'solicitud'
   | 'preliminar'
   | 'categorizacion'
   | 'avanzado'
@@ -29,103 +33,116 @@ interface NavSection {
   items: NavItem[];
 }
 
+const NAV_PRE: NavItem = { id: 'solicitud', label: 'Información General', pending: false };
+
 const NAV: NavSection[] = [
   {
     phaseNum: 'Fase 1',
     phase: 'Registro y Categorización',
     items: [
-      { id: 'preliminar',     num: 1, label: 'Cuestionario Preliminar',  pending: true  },
-      { id: 'categorizacion', num: 2, label: 'Categorización ICT',        pending: true  },
+      { id: 'preliminar',     num: 1, label: 'Cuestionario Preliminar', pending: false },
+      { id: 'categorizacion', num: 2, label: 'Categorización ICT',       pending: true  },
     ],
   },
   {
     phaseNum: 'Fase 2',
     phase: 'Análisis y Evaluación',
     items: [
-      { id: 'avanzado', num: 3, label: 'Cuestionario Avanzado',      pending: false },
-      { id: 'grc',      num: 4, label: 'Tareas de Evaluación GRC',   pending: true  },
-      { id: 'tprm',     num: 5, label: 'Cuestionario TPRM',          pending: true  },
-      { id: 'informe',  num: 6, label: 'Informe de Evaluación',      pending: true  },
+      { id: 'avanzado', num: 3, label: 'Cuestionario Avanzado',    pending: false },
+      { id: 'grc',      num: 4, label: 'Tareas de Evaluación GRC', pending: true  },
+      { id: 'tprm',     num: 5, label: 'Cuestionario TPRM',        pending: true  },
+      { id: 'informe',  num: 6, label: 'Informe de Evaluación',    pending: true  },
     ],
   },
   {
     phaseNum: 'Fase 3',
     phase: 'Resultados',
     items: [
-      { id: 'resultado',  label: 'Resultado OK / KO',              pending: true },
-      { id: 'despliegue', num: 7, label: 'Solicitud de Despliegue',  pending: true },
-      { id: 'inventario', num: 8, label: 'Inventario de Soluciones', pending: true },
+      { id: 'resultado',  label: 'Resultado OK / KO',             pending: true },
+      { id: 'despliegue', num: 7, label: 'Solicitud de Despliegue', pending: true },
+      { id: 'inventario', num: 8, label: 'Inventario de Soluciones',pending: true },
     ],
   },
 ];
 
-const ALL_ITEMS = NAV.flatMap(sec => sec.items);
+const ALL_ITEMS: NavItem[] = [NAV_PRE, ...NAV.flatMap(sec => sec.items)];
 
-// ── Pending page content ──────────────────────────────────────────────────────
+// ── Pending page info ─────────────────────────────────────────────────────────
 
-const PENDING_INFO: Record<PageId, { phase: string; description: string }> = {
-  preliminar: {
-    phase: 'Fase 1 · Registro y Categorización',
-    description:
-      'Cuestionario inicial enviado junto a la PST para determinar si la solución ICT requiere análisis completo de seguridad por parte del equipo GRC. Permite al solicitante declarar el tipo de solución y su alcance previsto.',
-  },
+const PENDING_INFO: Partial<Record<PageId, { phase: string; description: string }>> = {
   categorizacion: {
     phase: 'Fase 1 · Registro y Categorización',
-    description:
-      'Clasificación formal de la solución proveedor-servicio ICT según su tipología (SaaS, PaaS/IaaS, IT Outsourcing, etc.) e impacto en la organización. Determina el cuestionario avanzado y los controles aplicables.',
+    description: 'Clasificación formal de la solución por parte del equipo GRC, confirmando tipología e impacto en la organización. Determinada automáticamente a partir del Cuestionario Preliminar.',
   },
-  avanzado: { phase: '', description: '' },
   grc: {
     phase: 'Fase 2 · Análisis y Evaluación',
-    description:
-      'Conjunto estructurado de tareas de Gobernanza, Riesgos y Cumplimiento asignadas al equipo de seguridad para la evaluación profunda de la solución ICT, incluyendo revisión documental y análisis de controles.',
+    description: 'Tareas de Gobernanza, Riesgos y Cumplimiento asignadas al equipo de seguridad para la evaluación profunda de la solución ICT, incluyendo revisión documental y análisis de controles.',
   },
   tprm: {
     phase: 'Fase 2 · Análisis y Evaluación',
-    description:
-      'Evaluación de riesgos de terceros (Third-Party Risk Management) para analizar la postura de seguridad del proveedor: certificaciones, incidentes previos, subcontratistas, gestión de vulnerabilidades y continuidad.',
+    description: 'Evaluación de riesgos de terceros (Third-Party Risk Management): certificaciones del proveedor, incidentes previos, subcontratistas, gestión de vulnerabilidades y continuidad del negocio.',
   },
   informe: {
     phase: 'Fase 2 · Análisis y Evaluación',
-    description:
-      'Informe ejecutivo de evaluación de la solución ICT con el análisis de riesgos residuales, nivel de cumplimiento, salvaguardas aplicadas, resultado global (OK / OK+Plan / KO) y recomendaciones para la dirección.',
+    description: 'Informe ejecutivo con el análisis de riesgos residuales, nivel de cumplimiento, salvaguardas aplicadas, resultado global (OK / OK+Plan / KO) y recomendaciones para la dirección.',
   },
   resultado: {
     phase: 'Fase 3 · Resultados',
-    description:
-      'Resolución formal de la evaluación: OK (aprobado sin condiciones), OK con Plan de Acción al Proveedor (aprobado con mejoras comprometidas), o KO (no aprobado). Incluye transferencia de riesgos si procede.',
+    description: 'Resolución formal: OK (aprobado), OK con Plan de Acción al Proveedor, o KO (no aprobado). Incluye firma del informe y transferencia de riesgos si procede.',
   },
   despliegue: {
     phase: 'Fase 3 · Resultados',
-    description:
-      'Solicitud formal de despliegue de entorno en la infraestructura corporativa cuando la solución requiere participación del equipo de infraestructura. Gestiona la coordinación técnica del onboarding.',
+    description: 'Solicitud formal de despliegue en infraestructura corporativa cuando la solución requiere participación del equipo de infraestructura.',
   },
   inventario: {
     phase: 'Fase 3 · Resultados',
-    description:
-      'Registro de la nueva solución ICT aprobada en el inventario centralizado de herramientas y servicios de la organización, junto con el informe de evaluación y la PST asociada.',
+    description: 'Registro de la solución aprobada en el inventario centralizado de herramientas y servicios, junto con el informe de evaluación y la PST asociada.',
   },
 };
+
+// ── Completion helpers ────────────────────────────────────────────────────────
+
+function useCompletionStatus() {
+  const { solicitante, proveedor, esSolucionICT, categoriaId, esHerramientaIA } = useSolicitudStore();
+  return {
+    solicitud:    !!(solicitante || proveedor) && esSolucionICT !== null,
+    preliminar:   !!(categoriaId && esHerramientaIA !== null),
+  };
+}
+
+function StatusDot({ done }: { done: boolean }) {
+  if (!done) return null;
+  return <span className={s.doneDot} title="Completado" />;
+}
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [page, setPage] = useState<PageId>('avanzado');
+  const [page, setPage] = useState<PageId>('solicitud');
+  const { categoriaId } = useSolicitudStore();
+  const done = useCompletionStatus();
 
   const currentItem    = ALL_ITEMS.find(i => i.id === page);
   const currentSection = NAV.find(sec => sec.items.some(i => i.id === page));
 
   function renderContent() {
-    if (page === 'avanzado') return <CategoriesPage />;
-    const info = PENDING_INFO[page];
-    return (
-      <PendingPage
-        num={currentItem?.num}
-        title={currentItem?.label ?? ''}
-        phase={info.phase}
-        description={info.description}
-      />
-    );
+    switch (page) {
+      case 'solicitud':   return <InfoGeneral />;
+      case 'preliminar':  return <CuestionarioPreliminar />;
+      case 'avanzado':    return <CategoriesPage lockedCategoryId={categoriaId ?? undefined} />;
+      default: {
+        const info = PENDING_INFO[page];
+        if (!info) return null;
+        return (
+          <PendingPage
+            num={currentItem?.num}
+            title={currentItem?.label ?? ''}
+            phase={info.phase}
+            description={info.description}
+          />
+        );
+      }
+    }
   }
 
   return (
@@ -141,16 +158,25 @@ export default function App() {
           </div>
         </div>
 
-        {currentItem && currentSection && (
-          <div className={s.headerCrumb}>
-            <span className={s.headerCrumbPhase}>{currentSection.phaseNum}</span>
-            <span className={s.headerCrumbSep}>/</span>
-            <span className={s.headerCrumbPage}>{currentItem.label}</span>
-            {currentItem.pending && (
-              <span className={s.headerPendingBadge}>Pendiente</span>
-            )}
-          </div>
-        )}
+        <div className={s.headerCrumb}>
+          {currentSection ? (
+            <>
+              <span className={s.headerCrumbPhase}>{currentSection.phaseNum}</span>
+              <span className={s.headerCrumbSep}>/</span>
+            </>
+          ) : page === 'solicitud' ? (
+            <>
+              <span className={s.headerCrumbPhase}>Inicio</span>
+              <span className={s.headerCrumbSep}>/</span>
+            </>
+          ) : null}
+          {currentItem && (
+            <>
+              <span className={s.headerCrumbPage}>{currentItem.label}</span>
+              {currentItem.pending && <span className={s.headerPendingBadge}>Pendiente</span>}
+            </>
+          )}
+        </div>
       </header>
 
       {/* ── Body ── */}
@@ -158,6 +184,22 @@ export default function App() {
 
         {/* ── Sidebar ── */}
         <nav className={s.sidebar}>
+
+          {/* Pre-phase item: Información General */}
+          <div className={s.sidebarSection}>
+            <button
+              onClick={() => setPage('solicitud')}
+              className={`${s.sidebarItem} ${page === 'solicitud' ? s.sidebarItemActive : ''}`}
+            >
+              <span className={`${s.sidebarNum} ${page === 'solicitud' ? s.sidebarNumActive : ''}`}>
+                ℹ
+              </span>
+              <span className={s.sidebarLabel}>Información General</span>
+              <StatusDot done={done.solicitud} />
+            </button>
+          </div>
+
+          {/* Phase sections */}
           {NAV.map(section => (
             <div key={section.phaseNum} className={s.sidebarSection}>
               <p className={s.sidebarPhase}>
@@ -165,27 +207,33 @@ export default function App() {
                 {section.phase}
               </p>
 
-              {section.items.map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => setPage(item.id)}
-                  className={[
-                    s.sidebarItem,
-                    page === item.id   ? s.sidebarItemActive  : '',
-                    item.pending       ? s.sidebarItemPending : '',
-                  ].join(' ')}
-                >
-                  {item.num !== undefined ? (
-                    <span className={`${s.sidebarNum} ${page === item.id ? s.sidebarNumActive : ''}`}>
-                      {item.num}
-                    </span>
-                  ) : (
-                    <span className={s.sidebarNumPlaceholder} />
-                  )}
-                  <span className={s.sidebarLabel}>{item.label}</span>
-                  {item.pending && <span className={s.sidebarPendingTag}>Pendiente</span>}
-                </button>
-              ))}
+              {section.items.map(item => {
+                const isDone = item.id === 'preliminar' ? done.preliminar : false;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setPage(item.id)}
+                    className={[
+                      s.sidebarItem,
+                      page === item.id    ? s.sidebarItemActive  : '',
+                      item.pending        ? s.sidebarItemPending : '',
+                    ].join(' ')}
+                  >
+                    {item.num !== undefined ? (
+                      <span className={`${s.sidebarNum} ${page === item.id ? s.sidebarNumActive : ''}`}>
+                        {item.num}
+                      </span>
+                    ) : (
+                      <span className={s.sidebarNumPlaceholder} />
+                    )}
+                    <span className={s.sidebarLabel}>{item.label}</span>
+                    {item.pending
+                      ? <span className={s.sidebarPendingTag}>Pendiente</span>
+                      : <StatusDot done={isDone} />
+                    }
+                  </button>
+                );
+              })}
             </div>
           ))}
         </nav>
@@ -194,8 +242,8 @@ export default function App() {
         <main className={s.content}>
           {renderContent()}
         </main>
-      </div>
 
+      </div>
     </div>
   );
 }

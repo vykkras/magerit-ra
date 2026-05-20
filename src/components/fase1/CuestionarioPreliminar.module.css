@@ -1,0 +1,114 @@
+.page { padding: 36px 32px; display: flex; flex-direction: column; gap: 20px; }
+
+/* ── Header card ── */
+.headerCard {
+  background: #1a2e5c; border-radius: 14px; padding: 24px 28px;
+  display: flex; align-items: center; gap: 18px; color: #fff;
+}
+.headerIcon {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: rgba(255,255,255,0.12);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+}
+.headerNum {
+  font-size: 11px; font-weight: 800; color: rgba(255,255,255,0.45);
+  text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 3px;
+}
+.headerTitle { font-size: 18px; font-weight: 700; margin: 0 0 3px; }
+.headerSub   { font-size: 12.5px; color: rgba(255,255,255,0.5); margin: 0; }
+
+/* ── Category selection card ── */
+.card {
+  background: #fff; border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07); padding: 26px 28px;
+}
+.cardTitle {
+  font-size: 13px; font-weight: 700; color: #1e293b;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin: 0 0 18px; padding-bottom: 14px; border-bottom: 1px solid #f1f5f9;
+}
+.cardSub { font-size: 13px; color: #64748b; margin: 0 0 20px; line-height: 1.5; }
+
+.catGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.catCard {
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: #fff;
+  text-align: left;
+}
+.catCard:hover { border-color: #94a3b8; background: #f8fafc; }
+.catCardActive {
+  border-color: #1a2e5c !important;
+  background: #eff6ff !important;
+}
+
+.catName {
+  font-size: 13.5px; font-weight: 700; color: #1e293b; margin: 0 0 6px;
+  line-height: 1.3;
+}
+.catCardActive .catName { color: #1a2e5c; }
+
+.catMeta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.catRisks {
+  font-size: 11.5px; color: #94a3b8; font-weight: 500;
+}
+.catCheck {
+  width: 16px; height: 16px; border-radius: 50%; background: #1a2e5c;
+  display: flex; align-items: center; justify-content: center;
+  margin-left: auto; flex-shrink: 0;
+}
+.catCheck svg { width: 10px; height: 10px; stroke: #fff; stroke-width: 3; }
+
+/* ── Diamond ── */
+.diamond {
+  background: #fff; border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  padding: 22px 28px; border-left: 4px solid #f59e0b;
+}
+.diamondTop { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.diamondIcon { font-size: 18px; }
+.diamondLabel { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #f59e0b; }
+.diamondQuestion { font-size: 15px; font-weight: 700; color: #1e293b; margin: 0 0 16px; }
+
+.yesNo { display: flex; gap: 10px; }
+.btnYes {
+  padding: 9px 24px; border-radius: 8px; border: 1.5px solid #bbf7d0;
+  background: #f0fdf4; color: #16a34a; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all 0.15s;
+}
+.btnYes:hover { background: #dcfce7; }
+.btnYesActive { background: #16a34a !important; color: #fff !important; border-color: #16a34a !important; }
+
+.btnNo {
+  padding: 9px 24px; border-radius: 8px; border: 1.5px solid #fecaca;
+  background: #fff5f5; color: #dc2626; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all 0.15s;
+}
+.btnNo:hover { background: #fee2e2; }
+.btnNoActive { background: #dc2626 !important; color: #fff !important; border-color: #dc2626 !important; }
+
+/* ── NS policy note ── */
+.policyNote {
+  margin-top: 16px;
+  background: #eff6ff; border: 1px solid #bfdbfe;
+  border-radius: 10px; padding: 16px 20px;
+  display: flex; gap: 12px; align-items: flex-start;
+}
+.policyIcon { font-size: 18px; flex-shrink: 0; }
+.policyTitle { font-size: 13.5px; font-weight: 700; color: #1e40af; margin: 0 0 4px; }
+.policyText  { font-size: 12.5px; color: #1d4ed8; margin: 0; line-height: 1.5; }
+.policyCode  { font-family: monospace; font-weight: 700; }
+
+.hint {
+  margin-top: 16px; font-size: 12.5px; color: #94a3b8;
+  display: flex; align-items: center; gap: 6px;
+}
