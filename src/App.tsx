@@ -155,10 +155,13 @@ export default function App() {
     categories.forEach(cat => {
       const questions    = CATEGORY_QUESTIONNAIRES[cat.id] ?? [];
       const catAnswers   = answers[cat.id] ?? {};
+      const catAnswered  = questions.filter(q => catAnswers[q.id] != null).length;
       totalQ        += questions.length;
-      totalAnswered += questions.filter(q => catAnswers[q.id] != null).length;
+      totalAnswered += catAnswered;
       totalYes      += questions.filter(q => catAnswers[q.id] === 'yes').length;
 
+      // only include scenario risk if the user has actually answered questions in this category
+      if (catAnswered === 0) return;
       const rows = scenarios[cat.id] ?? [];
       rows.forEach(row => {
         if (row.inherentImpact === null || row.probability === null) return;

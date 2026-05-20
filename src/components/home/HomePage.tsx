@@ -92,7 +92,7 @@ export default function HomePage({ onStart }: { onStart: () => void }) {
   const hasSession     = catStats.some(c => c.isActive);
   const totalAnswered  = catStats.reduce((s, c) => s + c.answered, 0);
   const totalQuestions = catStats.reduce((s, c) => s + c.totalQ, 0);
-  const activeCats     = catStats.filter(c => c.scorableRows > 0);
+  const activeCats     = catStats.filter(c => c.isActive && c.scorableRows > 0);
   const sessInherent   = activeCats.length > 0 ? (activeCats.reduce((s, c) => s + c.totalInherent, 0) / activeCats.length).toFixed(1) : '—';
   const sessResidual   = activeCats.length > 0 ? (activeCats.reduce((s, c) => s + c.totalResidual, 0) / activeCats.length).toFixed(1) : '—';
   const sessReduction  = activeCats.length > 0 ? Math.round(activeCats.reduce((s, c) => s + c.reduction, 0) / activeCats.length) : null;
