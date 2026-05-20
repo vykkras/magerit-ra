@@ -65,6 +65,28 @@
   gap: 20px;
 }
 
+/* ── Category title (locked mode) ──────────────────────────────────────────── */
+
+.catTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.catTitleLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+}
+
+.catTitleName {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1a2e5c;
+}
+
 /* ── Toolbar card ───────────────────────────────────────────────────────────── */
 
 .toolbar {

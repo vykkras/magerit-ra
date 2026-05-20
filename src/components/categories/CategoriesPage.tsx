@@ -635,6 +635,14 @@ export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?
       {/* ── Content ── */}
       <div className={s.content}>
 
+        {/* Category title (shown when tabs are hidden) */}
+        {lockedCategoryId && (
+          <div className={s.catTitle}>
+            <span className={s.catTitleLabel}>Categoría</span>
+            <span className={s.catTitleName}>{category.name}</span>
+          </div>
+        )}
+
         {/* Toolbar card */}
         <div className={s.toolbar}>
           {/* View toggle */}
