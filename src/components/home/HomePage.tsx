@@ -48,11 +48,12 @@ export default function HomePage({ onStart }: { onStart: () => void }) {
   const { solicitante, proveedor, categoriaId } = useSolicitudStore();
 
   // ── Completed evaluations aggregates ────────────────────────────────────────
-  const evalCount   = evaluations.length;
+  const evalCount     = evaluations.length;
+  const iaCount       = evaluations.filter(e => e.esHerramientaIA === true).length;
   const avgCompliance = evalCount > 0 ? Math.round(evaluations.reduce((s, e) => s + e.compliance, 0) / evalCount) : null;
-  const avgInh      = evalCount > 0 ? (evaluations.reduce((s, e) => s + e.totalInherent, 0) / evalCount).toFixed(1) : '—';
-  const avgRes      = evalCount > 0 ? (evaluations.reduce((s, e) => s + e.totalResidual, 0)  / evalCount).toFixed(1) : '—';
-  const avgRed      = evalCount > 0 ? Math.round(evaluations.reduce((s, e) => s + e.reduction, 0) / evalCount) : null;
+  const avgInh        = evalCount > 0 ? (evaluations.reduce((s, e) => s + e.totalInherent, 0) / evalCount).toFixed(1) : '—';
+  const avgRes        = evalCount > 0 ? (evaluations.reduce((s, e) => s + e.totalResidual, 0)  / evalCount).toFixed(1) : '—';
+  const avgRed        = evalCount > 0 ? Math.round(evaluations.reduce((s, e) => s + e.reduction, 0) / evalCount) : null;
 
   // ── Current session: questionnaire progress only (no scenario defaults) ──────
   const catStats = categories.map(cat => {
@@ -103,6 +104,7 @@ export default function HomePage({ onStart }: { onStart: () => void }) {
           <p className={s.sectionTitle}>Evaluaciones completadas</p>
           <div className={s.statsGrid4}>
             <StatCard label="Total completadas" value={evalCount} sub="Evaluaciones guardadas" color={evalCount > 0 ? '#16a34a' : undefined} />
+            <StatCard label="Herramientas IA" value={iaCount} sub="Proceso NS.05.07" color={iaCount > 0 ? '#1d4ed8' : undefined} />
             <StatCard label="Cumplimiento medio" value={avgCompliance !== null ? `${avgCompliance}%` : '—'} sub="Promedio respuestas Sí"
               color={avgCompliance !== null ? (avgCompliance >= 70 ? '#16a34a' : avgCompliance >= 40 ? '#ca8a04' : '#dc2626') : undefined} />
             <StatCard label="Riesgo inherente medio" value={avgInh} sub="Prob × impacto acumulado"

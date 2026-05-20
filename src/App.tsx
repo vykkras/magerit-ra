@@ -139,7 +139,7 @@ function computeResidualImpact(
 export default function App() {
   const [page, setPage] = useState<PageId>('home');
   const solicitud = useSolicitudStore();
-  const { categoriaId } = solicitud;
+  const { categoriaId, esHerramientaIA } = solicitud;
   const { answers }     = useQuestionnaireStore();
   const { scenarios }   = useRiskScenarioStore();
   const { categories }  = useCategoryStore();
@@ -205,7 +205,18 @@ export default function App() {
       case 'home':        return <HomePage onStart={() => setPage('solicitud')} />;
       case 'solicitud':   return <InfoGeneral />;
       case 'preliminar':  return <CuestionarioPreliminar />;
-      case 'avanzado':    return <CategoriesPage lockedCategoryId={categoriaId ?? undefined} />;
+      case 'avanzado':
+        if (esHerramientaIA === true) {
+          return (
+            <PendingPage
+              num={3}
+              title="Cuestionario Avanzado"
+              phase="Fase 2 · Análisis y Evaluación"
+              description="Esta solución ha sido identificada como una Herramienta de Inteligencia Artificial y sigue el proceso de evaluación específico NS.05.07, gestionado directamente por el equipo GRC. El cuestionario avanzado estándar no aplica."
+            />
+          );
+        }
+        return <CategoriesPage lockedCategoryId={categoriaId ?? undefined} />;
       default: {
         const info = PENDING_INFO[page];
         if (!info) return null;
@@ -284,15 +295,16 @@ export default function App() {
               </p>
 
               {section.items.map(item => {
-                const isDone = item.id === 'preliminar' ? done.preliminar : false;
+                const isDone   = item.id === 'preliminar' ? done.preliminar : false;
+                const isIaStep = item.id === 'avanzado' && esHerramientaIA === true;
                 return (
                   <button
                     key={item.id}
                     onClick={() => setPage(item.id)}
                     className={[
                       s.sidebarItem,
-                      page === item.id    ? s.sidebarItemActive  : '',
-                      item.pending        ? s.sidebarItemPending : '',
+                      page === item.id ? s.sidebarItemActive  : '',
+                      item.pending && !isIaStep ? s.sidebarItemPending : '',
                     ].join(' ')}
                   >
                     {item.num !== undefined ? (
@@ -303,9 +315,11 @@ export default function App() {
                       <span className={s.sidebarNumPlaceholder} />
                     )}
                     <span className={s.sidebarLabel}>{item.label}</span>
-                    {item.pending
-                      ? <span className={s.sidebarPendingTag}>Pendiente</span>
-                      : <StatusDot done={isDone} />
+                    {isIaStep
+                      ? <span className={s.sidebarIaTag}>IA</span>
+                      : item.pending
+                        ? <span className={s.sidebarPendingTag}>Pendiente</span>
+                        : <StatusDot done={isDone} />
                     }
                   </button>
                 );
