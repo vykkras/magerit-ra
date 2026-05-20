@@ -87,6 +87,135 @@ function EditableQuestion({
   );
 }
 
+// ── Editable refs (risk or safeguard multi-select) ────────────────────────────
+
+function EditableRefs({
+  categoryId, questionId, type, defaultCodes,
+}: {
+  categoryId: string;
+  questionId: string;
+  type: 'risk' | 'safeguard';
+  defaultCodes: string[];
+}) {
+  const {
+    customRiskRefs, customSafeguardRefs,
+    setCustomRiskRefs, resetCustomRiskRefs,
+    setCustomSafeguardRefs, resetCustomSafeguardRefs,
+  } = useQuestionnaireStore();
+
+  const stored = type === 'risk'
+    ? customRiskRefs[categoryId]?.[questionId]
+    : customSafeguardRefs[categoryId]?.[questionId];
+  const currentCodes = stored ?? defaultCodes;
+  const isEdited = stored !== undefined;
+
+  const [open,   setOpen]   = useState(false);
+  const [search, setSearch] = useState('');
+  const [draft,  setDraft]  = useState<string[]>([]);
+  const ref       = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const allOptions = type === 'risk'
+    ? MAGERIT_THREATS.map(t => ({ code: t.code, name: t.name }))
+    : Object.entries(CATALOG_BY_CODE).map(([code, sg]) => ({ code, name: (sg as { name: string }).name }));
+
+  const filtered = search.trim()
+    ? allOptions.filter(o =>
+        o.code.toLowerCase().includes(search.toLowerCase()) ||
+        o.name?.toLowerCase().includes(search.toLowerCase())
+      )
+    : allOptions;
+
+  function openEditor() {
+    setDraft([...currentCodes]);
+    setOpen(true);
+    setTimeout(() => searchRef.current?.focus(), 0);
+  }
+
+  function toggle(code: string) {
+    setDraft(d => d.includes(code) ? d.filter(c => c !== code) : [...d, code]);
+  }
+
+  function save() {
+    if (type === 'risk') setCustomRiskRefs(categoryId, questionId, draft);
+    else setCustomSafeguardRefs(categoryId, questionId, draft);
+    setOpen(false);
+    setSearch('');
+  }
+
+  function restore() {
+    if (type === 'risk') resetCustomRiskRefs(categoryId, questionId);
+    else resetCustomSafeguardRefs(categoryId, questionId);
+    setOpen(false);
+    setSearch('');
+  }
+
+  function cancel() { setOpen(false); setSearch(''); }
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) cancel();
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <div className={s.refsCell}>
+        <div className={s.badgeWrap}>
+          {currentCodes.map(code => {
+            const item = type === 'risk'
+              ? MAGERIT_THREATS.find(t => t.code === code)
+              : CATALOG_BY_CODE[code] as { name?: string; description?: string } | undefined;
+            return <BadgeBtn key={code} code={code} name={item?.name} description={item?.description} />;
+          })}
+          {currentCodes.length === 0 && (
+            <span style={{ fontSize: 12, color: '#cbd5e1', fontStyle: 'italic' }}>—</span>
+          )}
+        </div>
+        <button className={s.refsEditBtn} onClick={openEditor} title={`Editar ${type === 'risk' ? 'riesgos' : 'salvaguardas'}`}>✏</button>
+      </div>
+
+      {open && (
+        <div className={s.refsPopover}>
+          <input
+            ref={searchRef}
+            className={s.refsSearch}
+            placeholder="Buscar..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          <div className={s.refsList}>
+            {filtered.map(opt => (
+              <label key={opt.code} className={s.refsOption}>
+                <input
+                  type="checkbox"
+                  checked={draft.includes(opt.code)}
+                  onChange={() => toggle(opt.code)}
+                  style={{ flexShrink: 0, marginTop: 2 }}
+                />
+                <span className={s.refsOptionCode}>{opt.code}</span>
+                <span className={s.refsOptionName}>{opt.name}</span>
+              </label>
+            ))}
+          </div>
+          <div className={s.refsActions}>
+            {isEdited && (
+              <button className={s.btnReset} onClick={restore} style={{ marginLeft: 0 }}>Restaurar</button>
+            )}
+            <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+              <button className={s.btnCancel} onClick={cancel}>Cancelar</button>
+              <button className={s.btnSave}   onClick={save}>Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Expandable badge ──────────────────────────────────────────────────────────
 
 function BadgeBtn({ code, name, description }: { code: string; name?: string; description?: string }) {
@@ -129,6 +258,8 @@ async function downloadExcel(
   categoryAnswers: Record<string, Answer>,
   critValue: Criticality,
   customQ: Record<string, string> = {},
+  customRR: Record<string, string[]> = {},
+  customSR: Record<string, string[]> = {},
 ) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'MAGERIT Risk';
@@ -177,11 +308,13 @@ async function downloadExcel(
   questions.forEach((q, i) => {
     const raw         = categoryAnswers[q.id] ?? null;
     const answerLabel = raw === 'yes' ? 'Si' : raw === 'no' ? 'No' : raw === 'na' ? 'N/A' : '';
+    const riskCodes = customRR[q.id] ?? q.riskRefs;
+    const sgCodes   = customSR[q.id] ?? q.safeguardRefs;
     const row = ws.addRow([
       customQ[q.id] ?? q.text,
       answerLabel,
-      q.riskRefs.join(', '),
-      q.safeguardRefs.map(sc => `${sc} – ${CATALOG_BY_CODE[sc]?.name ?? sc}`).join('\n'),
+      riskCodes.join(', '),
+      sgCodes.map(sc => `${sc} – ${(CATALOG_BY_CODE[sc] as { name?: string })?.name ?? sc}`).join('\n'),
     ]);
     row.getCell(1).alignment = { wrapText: true, vertical: 'top' };
     row.getCell(2).alignment = { horizontal: 'center', vertical: 'top' };
@@ -262,7 +395,7 @@ function DBModal({ category, onClose }: { category: Category; onClose: () => voi
 
 export default function CategoriesPage() {
   const { categories } = useCategoryStore();
-  const { answers, criticality, customQuestions, setAnswer, setCriticality } = useQuestionnaireStore();
+  const { answers, criticality, customQuestions, customRiskRefs, customSafeguardRefs, setAnswer, setCriticality } = useQuestionnaireStore();
 
   const [activeIdx, setActiveIdx] = useState(0);
   const [showDB,    setShowDB]    = useState(false);
@@ -272,6 +405,8 @@ export default function CategoriesPage() {
   const categoryAnswers = answers[category?.id] ?? {};
   const critValue       = criticality[category?.id] ?? null;
   const customQ         = customQuestions[category?.id] ?? {};
+  const customRR        = customRiskRefs[category?.id] ?? {};
+  const customSR        = customSafeguardRefs[category?.id] ?? {};
 
   const yesCount = questions.filter(q => categoryAnswers[q.id] === 'yes').length;
   const pct      = questions.length > 0 ? Math.round((yesCount / questions.length) * 100) : 0;
@@ -336,7 +471,7 @@ export default function CategoriesPage() {
             <button className={s.btnSecondary} onClick={() => setShowDB(true)}>
               Ver BD
             </button>
-            <button className={s.btnExcel} onClick={() => downloadExcel(category, questions, categoryAnswers, critValue, customQ)}>
+            <button className={s.btnExcel} onClick={() => downloadExcel(category, questions, categoryAnswers, critValue, customQ, customRR, customSR)}>
               <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12v6m0 0l-3-3m3 3l3-3M12 3v9" />
               </svg>
@@ -419,25 +554,21 @@ export default function CategoriesPage() {
                     </td>
 
                     <td>
-                      <div className={s.badgeWrap}>
-                        {q.riskRefs.map(code => {
-                          const t = MAGERIT_THREATS.find(x => x.code === code);
-                          return (
-                            <BadgeBtn key={code} code={code} name={t?.name} description={t?.description} />
-                          );
-                        })}
-                      </div>
+                      <EditableRefs
+                        categoryId={category.id}
+                        questionId={q.id}
+                        type="risk"
+                        defaultCodes={q.riskRefs}
+                      />
                     </td>
 
                     <td>
-                      <div className={s.badgeWrap}>
-                        {q.safeguardRefs.map(sc => {
-                          const sg = CATALOG_BY_CODE[sc];
-                          return (
-                            <BadgeBtn key={sc} code={sc} name={sg?.name} description={sg?.description} />
-                          );
-                        })}
-                      </div>
+                      <EditableRefs
+                        categoryId={category.id}
+                        questionId={q.id}
+                        type="safeguard"
+                        defaultCodes={q.safeguardRefs}
+                      />
                     </td>
                   </tr>
                 );
