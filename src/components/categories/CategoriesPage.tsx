@@ -584,7 +584,8 @@ export default function CategoriesPage() {
         {view === 'scenario' && <ScenarioTable category={category} />}
 
         {/* Questionnaire table card */}
-        {view === 'questionnaire' && <div className={s.tableCard}>
+        {view === 'questionnaire' && (
+        <div className={s.tableCard}>
           <table className={s.table}>
             <thead>
               <tr>
@@ -680,6 +681,7 @@ export default function CategoriesPage() {
             </tbody>
           </table>
         </div>
+        )}
       </div>
 
       {showDB && <DBModal category={category} onClose={() => setShowDB(false)} />}
