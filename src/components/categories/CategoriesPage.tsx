@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import ExcelJS from 'exceljs';
 import s from './CategoriesPage.module.css';
 import { useCategoryStore } from '../../store/categoryStore';
-import { useQuestionnaireStore, type Answer, type Criticality } from '../../store/questionnaireStore';
+import { useQuestionnaireStore, type Answer, type Criticality, type ExtraQuestion } from '../../store/questionnaireStore';
 import { useRiskScenarioStore } from '../../store/riskScenarioStore';
 import { MAGERIT_THREATS } from '../../data/threats.data';
 import { CATALOG_BY_CODE } from '../../data/safeguards.data';
@@ -295,7 +295,7 @@ function ScenarioTable({
   questions: Question[];
   categoryAnswers: Record<string, Answer>;
 }) {
-  const { scenarios, updateRow } = useRiskScenarioStore();
+  const { scenarios, updateRow, addRow } = useRiskScenarioStore();
   const rows = scenarios[category.id] ?? [];
 
   // Enrich each row with computed residual impact + question coverage info
@@ -419,6 +419,11 @@ function ScenarioTable({
           </tbody>
         </table>
       </div>
+
+      {/* ── Add row ── */}
+      <button className={s.addRowBtn} onClick={() => addRow(category.id)}>
+        + Agregar fila
+      </button>
     </>
   );
 }
@@ -568,7 +573,8 @@ function DBModal({ category, onClose }: { category: Category; onClose: () => voi
 
 export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?: string } = {}) {
   const { categories } = useCategoryStore();
-  const { answers, criticality, customQuestions, customRiskRefs, customSafeguardRefs, setAnswer, setCriticality, clearAnswers } = useQuestionnaireStore();
+  const { answers, criticality, customQuestions, customRiskRefs, customSafeguardRefs, extraQuestions,
+          setAnswer, setCriticality, clearAnswers, addExtraQuestion, updateExtraQuestion, removeExtraQuestion } = useQuestionnaireStore();
 
   const lockedIdx = lockedCategoryId ? categories.findIndex(c => c.id === lockedCategoryId) : -1;
   const [activeIdx, setActiveIdx] = useState(lockedIdx >= 0 ? lockedIdx : 0);
@@ -582,6 +588,7 @@ export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?
   const customQ         = customQuestions[category?.id] ?? {};
   const customRR        = customRiskRefs[category?.id] ?? {};
   const customSR        = customSafeguardRefs[category?.id] ?? {};
+  const extraQs         = extraQuestions[category?.id] ?? [];
 
   const yesCount = questions.filter(q => categoryAnswers[q.id] === 'yes').length;
   const pct      = questions.length > 0 ? Math.round((yesCount / questions.length) * 100) : 0;
@@ -788,8 +795,47 @@ export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?
                 );
               })}
 
+              {/* Extra question rows */}
+              {extraQs.map((eq: ExtraQuestion) => {
+                const current = categoryAnswers[eq.id] ?? null;
+                return (
+                  <tr key={eq.id} className={current === 'yes' ? s.rowYes : current === 'no' ? s.rowNo : s.rowExtra}>
+                    <td>
+                      <div className={s.questionCell}>
+                        <input
+                          className={s.extraQInput}
+                          placeholder="Nueva pregunta…"
+                          value={eq.text}
+                          onChange={e => updateExtraQuestion(category.id, eq.id, { text: e.target.value })}
+                        />
+                        <button className={s.removeExtraBtn} onClick={() => removeExtraQuestion(category.id, eq.id)} title="Eliminar">×</button>
+                      </div>
+                    </td>
+                    <td>
+                      <div className={s.answerBtns}>
+                        {(['yes','no','na'] as const).map(v => (
+                          <button key={v}
+                            onClick={() => toggle(eq.id, v)}
+                            className={`${s.ansBtn} ${current === v ? (v === 'yes' ? s.ansBtnYes : v === 'no' ? s.ansBtnNo : s.ansBtnNa) : ''}`}
+                          >{v === 'yes' ? 'Si' : v === 'no' ? 'No' : 'N/A'}</button>
+                        ))}
+                      </div>
+                    </td>
+                    <td>
+                      <EditableRefs categoryId={category.id} questionId={eq.id} type="risk" defaultCodes={eq.riskRefs} />
+                    </td>
+                    <td>
+                      <EditableRefs categoryId={category.id} questionId={eq.id} type="safeguard" defaultCodes={eq.safeguardRefs} />
+                    </td>
+                  </tr>
+                );
+              })}
+
             </tbody>
           </table>
+          <button className={s.addRowBtn} onClick={() => addExtraQuestion(category.id)}>
+            + Agregar pregunta
+          </button>
         </div>
         )}
       </div>

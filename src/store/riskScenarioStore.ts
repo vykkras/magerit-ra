@@ -9,6 +9,7 @@ type RowUpdate = Partial<Pick<ScenarioRow, 'threatCode' | 'probability' | 'inher
 interface RiskScenarioStore {
   scenarios: Record<string, ScenarioRow[]>;
   updateRow: (categoryId: string, rowId: string, updates: RowUpdate) => void;
+  addRow: (categoryId: string) => void;
   resetCategory: (categoryId: string) => void;
 }
 
@@ -30,6 +31,21 @@ export const useRiskScenarioStore = create<RiskScenarioStore>()(
             ),
           },
         }));
+      },
+
+      addRow(categoryId) {
+        set(s => {
+          const existing = s.scenarios[categoryId] ?? INITIAL[categoryId] ?? [];
+          const newRow: ScenarioRow = {
+            id: `${categoryId}-custom-${Date.now()}`,
+            threatCode: '',
+            probability: null,
+            inherentImpact: null,
+            applicableSafeguard: '',
+            residualImpact: null,
+          };
+          return { scenarios: { ...s.scenarios, [categoryId]: [...existing, newRow] } };
+        });
       },
 
       resetCategory(categoryId) {

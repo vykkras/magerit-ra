@@ -4,12 +4,20 @@ import { persist } from 'zustand/middleware';
 export type Answer = 'yes' | 'no' | 'na' | null;
 export type Criticality = 'baja' | 'media' | 'alta' | 'critica' | null;
 
+export interface ExtraQuestion {
+  id: string;
+  text: string;
+  riskRefs: string[];
+  safeguardRefs: string[];
+}
+
 interface QuestionnaireStore {
   answers: Record<string, Record<string, Answer>>;
   criticality: Record<string, Criticality>;
   customQuestions: Record<string, Record<string, string>>;
   customRiskRefs: Record<string, Record<string, string[]>>;
   customSafeguardRefs: Record<string, Record<string, string[]>>;
+  extraQuestions: Record<string, ExtraQuestion[]>;
   setAnswer: (categoryId: string, questionId: string, answer: Answer) => void;
   setCriticality: (categoryId: string, value: Criticality) => void;
   setCustomQuestion: (categoryId: string, questionId: string, text: string) => void;
@@ -18,6 +26,9 @@ interface QuestionnaireStore {
   resetCustomRiskRefs: (categoryId: string, questionId: string) => void;
   setCustomSafeguardRefs: (categoryId: string, questionId: string, codes: string[]) => void;
   resetCustomSafeguardRefs: (categoryId: string, questionId: string) => void;
+  addExtraQuestion: (categoryId: string) => void;
+  updateExtraQuestion: (categoryId: string, questionId: string, updates: Partial<ExtraQuestion>) => void;
+  removeExtraQuestion: (categoryId: string, questionId: string) => void;
   clearAnswers: (categoryId: string) => void;
   resetCategory: (categoryId: string) => void;
 }
@@ -30,6 +41,7 @@ export const useQuestionnaireStore = create<QuestionnaireStore>()(
       customQuestions: {},
       customRiskRefs: {},
       customSafeguardRefs: {},
+      extraQuestions: {},
 
       setAnswer(categoryId, questionId, answer) {
         set(s => ({
@@ -41,9 +53,7 @@ export const useQuestionnaireStore = create<QuestionnaireStore>()(
       },
 
       setCriticality(categoryId, value) {
-        set(s => ({
-          criticality: { ...s.criticality, [categoryId]: value },
-        }));
+        set(s => ({ criticality: { ...s.criticality, [categoryId]: value } }));
       },
 
       setCustomQuestion(categoryId, questionId, text) {
@@ -97,6 +107,39 @@ export const useQuestionnaireStore = create<QuestionnaireStore>()(
         });
       },
 
+      addExtraQuestion(categoryId) {
+        set(s => {
+          const existing = s.extraQuestions[categoryId] ?? [];
+          const newQ: ExtraQuestion = {
+            id: `extra-${categoryId}-${Date.now()}`,
+            text: '',
+            riskRefs: [],
+            safeguardRefs: [],
+          };
+          return { extraQuestions: { ...s.extraQuestions, [categoryId]: [...existing, newQ] } };
+        });
+      },
+
+      updateExtraQuestion(categoryId, questionId, updates) {
+        set(s => ({
+          extraQuestions: {
+            ...s.extraQuestions,
+            [categoryId]: (s.extraQuestions[categoryId] ?? []).map(q =>
+              q.id === questionId ? { ...q, ...updates } : q
+            ),
+          },
+        }));
+      },
+
+      removeExtraQuestion(categoryId, questionId) {
+        set(s => ({
+          extraQuestions: {
+            ...s.extraQuestions,
+            [categoryId]: (s.extraQuestions[categoryId] ?? []).filter(q => q.id !== questionId),
+          },
+        }));
+      },
+
       clearAnswers(categoryId) {
         set(s => {
           const nextA = { ...s.answers };
@@ -114,12 +157,14 @@ export const useQuestionnaireStore = create<QuestionnaireStore>()(
           const nextQ  = { ...s.customQuestions };
           const nextRR = { ...s.customRiskRefs };
           const nextSR = { ...s.customSafeguardRefs };
+          const nextEQ = { ...s.extraQuestions };
           delete nextA[categoryId];
           delete nextC[categoryId];
           delete nextQ[categoryId];
           delete nextRR[categoryId];
           delete nextSR[categoryId];
-          return { answers: nextA, criticality: nextC, customQuestions: nextQ, customRiskRefs: nextRR, customSafeguardRefs: nextSR };
+          delete nextEQ[categoryId];
+          return { answers: nextA, criticality: nextC, customQuestions: nextQ, customRiskRefs: nextRR, customSafeguardRefs: nextSR, extraQuestions: nextEQ };
         });
       },
     }),

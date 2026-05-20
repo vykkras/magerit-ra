@@ -55,25 +55,29 @@ export function buildDefaultScenarios(categoryId: string): ScenarioRow[] {
     });
   });
 
-  const rows: ScenarioRow[] = threats.map((tc, i) => ({
-    id: `${categoryId}-${i}`,
-    threatCode: tc,
-    probability: null,
-    inherentImpact: null,
-    applicableSafeguard: '',
-    residualImpact: null,
-  }));
+  const rows: ScenarioRow[] = threats.map((tc, i) => {
+    const sgs = riskToSg.get(tc) ?? [];
+    return {
+      id: `${categoryId}-${i}`,
+      threatCode: tc,
+      probability: null,
+      inherentImpact: null,
+      applicableSafeguard: sgs[0] ?? '',
+      residualImpact: null,
+    };
+  });
 
   // Pad to 20 with blank secondary rows
   let padIdx = 0;
   while (rows.length < 20) {
-    const tc = threats[padIdx % threats.length];
+    const tc  = threats[padIdx % threats.length];
+    const sgs = riskToSg.get(tc) ?? [];
     rows.push({
       id: `${categoryId}-x${padIdx}`,
       threatCode: tc,
       probability: null,
       inherentImpact: null,
-      applicableSafeguard: '',
+      applicableSafeguard: sgs.length > 1 ? sgs[1] : (sgs[0] ?? ''),
       residualImpact: null,
     });
     padIdx++;
