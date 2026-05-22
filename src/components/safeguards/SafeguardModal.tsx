@@ -1,23 +1,9 @@
-/**
- * Modal de alta / edición de una salvaguarda MAGERIT §6.
- * El analista elige el código del catálogo §6 y completa:
- * dimensiones protegidas, amenazas mitigadas, eficacia, coste y estado.
- */
-
 import { useState, useEffect, useRef } from 'react';
 import { useSafeguardStore } from '../../store/safeguardStore';
-import {
-  SAFEGUARD_CATALOG, CATALOG_BY_CODE,
-  SAFEGUARD_FAMILIES, FAMILY_META, STATUS_LABELS,
-} from '../../data/safeguards.data';
+import { ISO27001_CONTROLS, ISO27001_CATEGORIES, CONTROLS_BY_ID, STATUS_LABELS } from '../../data/iso27001.data';
 import { MAGERIT_THREATS, GROUP_LABELS } from '../../data/threats.data';
-import type { Safeguard, SafeguardStatus, DimensionCode } from '../../types';
+import type { Safeguard, SafeguardStatus, SafeguardResponsable } from '../../types';
 
-const DIMENSIONS: DimensionCode[] = ['D', 'I', 'C', 'A', 'T'];
-const DIM_FULL: Record<DimensionCode, string> = {
-  D: 'Disponibilidad', I: 'Integridad', C: 'Confidencialidad',
-  A: 'Autenticidad',   T: 'Trazabilidad',
-};
 const STATUS_OPTS = Object.keys(STATUS_LABELS) as SafeguardStatus[];
 
 interface Props {
@@ -30,15 +16,16 @@ export function SafeguardModal({ existing, onClose }: Props) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const isEdit = !!existing;
 
-  const [catalogCode, setCatalogCode]   = useState(existing?.code ?? '');
+  const [controlId, setControlId]       = useState(existing?.controlId ?? '');
   const [description, setDescription]   = useState(existing?.description ?? '');
-  const [dimensions, setDimensions]     = useState<DimensionCode[]>(existing?.dimensionsProtected ?? []);
+  const [responsable, setResponsable]   = useState<SafeguardResponsable | null>(existing?.responsable ?? null);
   const [threats, setThreats]           = useState<string[]>(existing?.threatsMitigated ?? []);
   const [effectiveness, setEffectiveness] = useState(existing?.effectiveness ?? 50);
   const [cost, setCost]                 = useState<string>(existing?.cost != null ? String(existing.cost) : '');
   const [status, setStatus]             = useState<SafeguardStatus>(existing?.status ?? 'planned');
   const [notes, setNotes]               = useState(existing?.notes ?? '');
   const [threatSearch, setThreatSearch] = useState('');
+  const [catFilter, setCatFilter]       = useState('');
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -47,42 +34,35 @@ export function SafeguardModal({ existing, onClose }: Props) {
   }, [onClose]);
 
   useEffect(() => {
-    if (catalogCode && !isEdit) {
-      setDescription(CATALOG_BY_CODE[catalogCode]?.description ?? '');
+    if (controlId && !isEdit) {
+      const ctrl = CONTROLS_BY_ID[controlId];
+      if (ctrl) setDescription(ctrl.description);
     }
-  }, [catalogCode, isEdit]);
+  }, [controlId, isEdit]);
 
   function handleOverlayClick(e: React.MouseEvent) {
     if (e.target === overlayRef.current) onClose();
   }
 
-  function toggleDimension(d: DimensionCode) {
-    setDimensions(prev =>
-      prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]
-    );
-  }
-
   function toggleThreat(code: string) {
-    setThreats(prev =>
-      prev.includes(code) ? prev.filter(x => x !== code) : [...prev, code]
-    );
+    setThreats(prev => prev.includes(code) ? prev.filter(x => x !== code) : [...prev, code]);
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!catalogCode) return;
+    if (!controlId) return;
 
-    const entry = CATALOG_BY_CODE[catalogCode];
+    const ctrl = CONTROLS_BY_ID[controlId];
     const costNum = cost.trim() !== '' ? Number(cost) : undefined;
 
-    const payload = {
-      code: catalogCode as Safeguard['code'],
-      family: entry?.family ?? ('H' as Safeguard['family']),
-      name: entry?.name ?? catalogCode,
+    const payload: Omit<Safeguard, 'id' | 'createdAt' | 'updatedAt'> = {
+      controlId,
+      category: ctrl?.category ?? ('Gobierno y Organización' as const),
+      name: ctrl?.name ?? controlId,
       description,
-      protectsAssetTypes: [],
-      dimensionsProtected: dimensions,
-      threatsMitigated: threats as Safeguard['threatsMitigated'],
+      isoIds: ctrl?.isoIds ?? [],
+      responsable,
+      threatsMitigated: threats,
       effectiveness,
       cost: costNum,
       status,
@@ -103,6 +83,10 @@ export function SafeguardModal({ existing, onClose }: Props) {
     return t.code.toLowerCase().includes(q) || t.name.toLowerCase().includes(q);
   });
 
+  const catalogOptions = ISO27001_CONTROLS.filter(c =>
+    !catFilter || c.category === catFilter
+  );
+
   return (
     <div
       ref={overlayRef}
@@ -115,9 +99,9 @@ export function SafeguardModal({ existing, onClose }: Props) {
         <div className="flex items-center justify-between px-7 py-5 border-b border-slate-100 shrink-0">
           <div>
             <h2 className="text-lg font-bold text-slate-900">
-              {isEdit ? 'Editar salvaguarda' : 'Registrar salvaguarda'}
+              {isEdit ? 'Editar control ISO 27001' : 'Registrar control ISO 27001'}
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">MAGERIT §6 · §A4.3</p>
+            <p className="text-xs text-slate-400 mt-0.5">ISO/IEC 27001:2022</p>
           </div>
           <button onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -128,80 +112,86 @@ export function SafeguardModal({ existing, onClose }: Props) {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6 px-7 py-6">
 
-          {/* Código del catálogo §6 */}
+          {/* Control selector */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-2">
-              Salvaguarda del catálogo §6 *
-            </label>
+            <label className="block text-xs font-semibold text-slate-600 mb-2">Control ISO 27001 *</label>
             <select
-              value={catalogCode}
-              onChange={e => setCatalogCode(e.target.value)}
+              value={catFilter}
+              onChange={e => { setCatFilter(e.target.value); setControlId(''); }}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-300 mb-2"
+            >
+              <option value="">— Todas las categorías —</option>
+              {ISO27001_CATEGORIES.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            <select
+              value={controlId}
+              onChange={e => setControlId(e.target.value)}
               required
               className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-300"
             >
-              <option value="">— Selecciona una salvaguarda —</option>
-              {SAFEGUARD_FAMILIES.map(fam => {
-                const entries = SAFEGUARD_CATALOG.filter(s => s.family === fam);
-                return (
-                  <optgroup key={fam} label={`[${fam}] ${FAMILY_META[fam].label} ${FAMILY_META[fam].section}`}>
-                    {entries.map(s => (
-                      <option key={s.code} value={s.code}>[{s.code}] {s.name}</option>
-                    ))}
-                  </optgroup>
-                );
-              })}
+              <option value="">— Selecciona un control —</option>
+              {catalogOptions.map(c => (
+                <option key={c.id} value={c.id}>
+                  [{c.isoIds.join(', ')}] {c.name}
+                </option>
+              ))}
             </select>
-            {catalogCode && (
+            {controlId && (
               <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">
-                {CATALOG_BY_CODE[catalogCode]?.description}
+                {CONTROLS_BY_ID[controlId]?.description}
               </p>
             )}
           </div>
 
-          {/* Descripción */}
+          {/* Responsable */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-2">
-              Descripción / contexto de implantación
+              Responsable de implementación
             </label>
-            <textarea
-              rows={3}
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="Detalla cómo se implanta esta salvaguarda en la organización…"
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-slate-300"
-            />
-          </div>
-
-          {/* Dimensiones protegidas §3 */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-2">
-              Dimensiones protegidas §3
-            </label>
-            <div className="flex gap-2 flex-wrap">
-              {DIMENSIONS.map(d => (
+            <div className="flex gap-2">
+              {([
+                { val: 'proveedor', label: '🏢 Proveedor / Solución evaluada', cls: 'bg-violet-700' },
+                { val: 'empresa',   label: '🏠 Nuestra empresa',               cls: 'bg-sky-700' },
+              ] as const).map(opt => (
                 <button
-                  key={d}
+                  key={opt.val}
                   type="button"
-                  onClick={() => toggleDimension(d)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
-                    dimensions.includes(d)
-                      ? 'bg-slate-800 text-white border-slate-800'
+                  onClick={() => setResponsable(responsable === opt.val ? null : opt.val)}
+                  className={`flex-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-all ${
+                    responsable === opt.val
+                      ? `${opt.cls} text-white border-transparent`
                       : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
                   }`}
                 >
-                  [{d}] {DIM_FULL[d]}
+                  {opt.label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Amenazas mitigadas §5 (M:N) */}
+          {/* Description */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-2">
-              Amenazas mitigadas §5
+              Notas de implementación
+            </label>
+            <textarea
+              rows={3}
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="Detalla cómo se implementa este control en el contexto evaluado…"
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-slate-300"
+            />
+          </div>
+
+          {/* Amenazas MAGERIT mitigadas */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-2">
+              Amenazas MAGERIT mitigadas
               {threats.length > 0 && (
                 <span className="ml-2 px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[11px] font-bold">
-                  {threats.length} seleccionadas
+                  {threats.length}
                 </span>
               )}
             </label>
@@ -215,7 +205,7 @@ export function SafeguardModal({ existing, onClose }: Props) {
                   className="w-full bg-transparent text-sm focus:outline-none placeholder-slate-400"
                 />
               </div>
-              <div className="max-h-52 overflow-y-auto divide-y divide-slate-50">
+              <div className="max-h-44 overflow-y-auto divide-y divide-slate-50">
                 {(['N', 'I', 'E', 'A'] as const).map(group => {
                   const groupThreats = filteredThreats.filter(t => t.group === group);
                   if (!groupThreats.length) return null;
@@ -250,12 +240,10 @@ export function SafeguardModal({ existing, onClose }: Props) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-2">
-                Eficacia §A4.3
-                <span className="ml-2 font-mono text-slate-400">{effectiveness}%</span>
+                Eficacia <span className="ml-1 font-mono text-slate-400">{effectiveness}%</span>
               </label>
               <input
-                type="range"
-                min={0} max={100} step={5}
+                type="range" min={0} max={100} step={5}
                 value={effectiveness}
                 onChange={e => setEffectiveness(Number(e.target.value))}
                 className="w-full accent-slate-800"
@@ -269,9 +257,7 @@ export function SafeguardModal({ existing, onClose }: Props) {
                 Coste estimado <span className="font-normal text-slate-400">(€, opcional)</span>
               </label>
               <input
-                type="number"
-                min={0}
-                step={100}
+                type="number" min={0} step={100}
                 value={cost}
                 onChange={e => setCost(e.target.value)}
                 placeholder="ej. 5000"
@@ -280,18 +266,16 @@ export function SafeguardModal({ existing, onClose }: Props) {
             </div>
           </div>
 
-          {/* Estado §A4.3 / §A4.5 */}
+          {/* Estado */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-2">
-              Estado de implantación — §A4.3 / §A4.5
-            </label>
+            <label className="block text-xs font-semibold text-slate-600 mb-2">Estado</label>
             <div className="flex gap-2 flex-wrap">
               {STATUS_OPTS.map(s => (
                 <button
                   key={s}
                   type="button"
                   onClick={() => setStatus(s)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
                     status === s
                       ? 'bg-slate-800 text-white border-slate-800'
                       : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
@@ -305,12 +289,12 @@ export function SafeguardModal({ existing, onClose }: Props) {
 
           {/* Notas */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-2">Notas</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-2">Notas adicionales</label>
             <textarea
               rows={2}
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              placeholder="Observaciones, responsable, fecha de revisión…"
+              placeholder="Observaciones, fecha de revisión, referencias…"
               className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-slate-300"
             />
           </div>
@@ -320,15 +304,15 @@ export function SafeguardModal({ existing, onClose }: Props) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+              className="flex-1 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="flex-1 py-2.5 bg-slate-800 text-white text-sm font-semibold rounded-xl hover:bg-slate-700 transition-colors"
+              className="flex-1 py-2.5 bg-slate-800 text-white text-sm font-semibold rounded-xl hover:bg-slate-700"
             >
-              {isEdit ? 'Guardar cambios' : 'Registrar salvaguarda'}
+              {isEdit ? 'Guardar cambios' : 'Registrar control'}
             </button>
           </div>
         </form>

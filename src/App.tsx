@@ -188,7 +188,7 @@ export default function App() {
       totalResidual:   Math.round(totalResidual * 10) / 10,
       reduction,
       snapshot: {
-        solicitud:          { solicitante: solicitud.solicitante, proveedor: solicitud.proveedor, departamento: solicitud.departamento, referenciaPST: solicitud.referenciaPST, fechaSolicitud: solicitud.fechaSolicitud, descripcion: solicitud.descripcion, departamento: solicitud.departamento, esSolucionICT: solicitud.esSolucionICT, categoriaId: solicitud.categoriaId, esHerramientaIA: solicitud.esHerramientaIA },
+        solicitud:          { solicitante: solicitud.solicitante, proveedor: solicitud.proveedor, departamento: solicitud.departamento, referenciaPST: solicitud.referenciaPST, fechaSolicitud: solicitud.fechaSolicitud, descripcion: solicitud.descripcion, esSolucionICT: solicitud.esSolucionICT, categoriaId: solicitud.categoriaId, esHerramientaIA: solicitud.esHerramientaIA },
         answers,
         criticality,
         customQuestions,

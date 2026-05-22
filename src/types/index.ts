@@ -62,26 +62,10 @@ export type {
   Risk,
 } from './risk.types';
 
-// §6 – Salvaguardas
+// Controles ISO 27001 (salvaguardas)
 export type {
   SafeguardFamily,
-  GeneralSafeguardCode,
-  DataSafeguardCode,
-  KeySafeguardCode,
-  ServiceSafeguardCode,
-  SoftwareSafeguardCode,
-  HardwareSafeguardCode,
-  CommsSafeguardCode,
-  InterconnectionSafeguardCode,
-  MediaSafeguardCode,
-  AuxSafeguardCode,
-  FacilitySafeguardCode,
-  PersonnelSafeguardCode,
-  OrgSafeguardCode,
-  ContinuitySafeguardCode,
-  ExternalSafeguardCode,
-  AcquisitionSafeguardCode,
-  SafeguardCode,
+  SafeguardResponsable,
   Safeguard,
   SafeguardStatus,
 } from './safeguard.types';

@@ -14,7 +14,8 @@ import {
   type Mapping, type RiskLevel,
 } from '../../store/mappingStore';
 import { MAGERIT_THREATS, GROUP_LABELS } from '../../data/threats.data';
-import { SAFEGUARD_CATALOG, CATALOG_BY_CODE, FAMILY_META, SAFEGUARD_FAMILIES } from '../../data/safeguards.data';
+import { SAFEGUARD_CATALOG, CATALOG_BY_CODE, SAFEGUARD_FAMILIES } from '../../data/safeguards.data';
+import { CATEGORY_ABBREV } from '../../data/iso27001.data';
 import type { SafeguardFamily } from '../../types';
 
 // ---------------------------------------------------------------------------
@@ -224,8 +225,9 @@ function AddSafeguardPanel({ mappingId, existing, onDone }: {
   const options = useMemo(() => {
     const q = search.toLowerCase();
     return SAFEGUARD_CATALOG.filter(s =>
-      !existing.includes(s.code) &&
-      (s.code.toLowerCase().includes(q) || s.name.toLowerCase().includes(q))
+      !existing.includes(s.id) &&
+      (s.id.toLowerCase().includes(q) || s.name.toLowerCase().includes(q) ||
+       s.isoIds.some((id: string) => id.includes(q)))
     );
   }, [search, existing]);
 
@@ -235,9 +237,10 @@ function AddSafeguardPanel({ mappingId, existing, onDone }: {
     onDone();
   }
 
+
   return (
     <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 flex flex-col gap-3">
-      <p className="text-xs font-semibold text-slate-600">Añadir salvaguarda §6</p>
+      <p className="text-xs font-semibold text-slate-600">Añadir control ISO 27001</p>
       <input
         type="text"
         placeholder="Buscar salvaguarda…"
@@ -248,14 +251,14 @@ function AddSafeguardPanel({ mappingId, existing, onDone }: {
       <div className="max-h-44 overflow-y-auto border border-slate-200 rounded-lg bg-white divide-y divide-slate-50">
         {options.slice(0, 50).map(s => (
           <button
-            key={s.code}
+            key={s.id}
             type="button"
-            onClick={() => setSelected(s.code)}
+            onClick={() => setSelected(s.id)}
             className={`w-full flex items-center gap-3 px-3 py-2 text-left text-sm transition-colors ${
-              selected === s.code ? 'bg-slate-800 text-white' : 'hover:bg-slate-50 text-slate-700'
+              selected === s.id ? 'bg-slate-800 text-white' : 'hover:bg-slate-50 text-slate-700'
             }`}
           >
-            <span className="font-mono text-xs w-20 shrink-0 opacity-60">[{s.code}]</span>
+            <span className="font-mono text-xs w-20 shrink-0 opacity-60">{s.isoIds.join(',')}</span>
             <span className="flex-1 leading-snug">{s.name}</span>
           </button>
         ))}
@@ -311,10 +314,9 @@ function DetailPanel({ mapping }: { mapping: Mapping }) {
   const inherentLevel = getRiskLevel(mapping.inherentScore);
   const residualLevel = getRiskLevel(mapping.residualScore);
 
-  // Dimensiones cubiertas por las salvaguardas aplicadas (de sus catálogos)
   const coveredFamilies = [...new Set(mapping.safeguards.map(sg => {
     const entry = CATALOG_BY_CODE[sg.code];
-    return entry?.family ?? null;
+    return (entry as { category?: string })?.category ?? null;
   }).filter(Boolean))];
 
   return (
@@ -352,7 +354,7 @@ function DetailPanel({ mapping }: { mapping: Mapping }) {
       <div>
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
-            Salvaguardas aplicadas §6
+            Controles ISO 27001 aplicados
             <span className="ml-2 text-slate-400 normal-case font-normal">({mapping.safeguards.length})</span>
           </p>
           {!showAdd && (
@@ -473,14 +475,13 @@ function DetailPanel({ mapping }: { mapping: Mapping }) {
           </p>
         </div>
 
-        {/* Familias cubiertas */}
         {coveredFamilies.length > 0 && (
           <div>
-            <p className="text-[10px] text-slate-400 mb-1.5">Familias §6 cubiertas</p>
+            <p className="text-[10px] text-slate-400 mb-1.5">Categorías ISO cubiertas</p>
             <div className="flex flex-wrap gap-1.5">
               {(coveredFamilies as SafeguardFamily[]).map(f => (
-                <span key={f} className="px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-white border border-slate-200 text-slate-600">
-                  [{f}]
+                <span key={f} className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-white border border-slate-200 text-slate-600">
+                  {CATEGORY_ABBREV[f] ?? f}
                 </span>
               ))}
             </div>
@@ -629,7 +630,7 @@ function MatrixView({ mappings, onSelect, selectedId }: {
     <div className="p-6 h-full overflow-auto flex flex-col gap-4">
       <div>
         <h3 className="text-sm font-bold text-slate-700">Matriz de Cobertura</h3>
-        <p className="text-xs text-slate-400">Celda cubierta (■) = familia §6 presente. Pulsa celda vacía para añadir.</p>
+        <p className="text-xs text-slate-400">Celda cubierta (■) = categoría ISO 27001 presente. Pulsa celda vacía para añadir.</p>
       </div>
 
       <div className="overflow-x-auto">
@@ -640,8 +641,8 @@ function MatrixView({ mappings, onSelect, selectedId }: {
               <th className="px-3 py-2 text-center text-slate-500 font-semibold min-w-[40px]">P×I</th>
               <th className="px-3 py-2 text-center text-slate-500 font-semibold">Eff.</th>
               {SAFEGUARD_FAMILIES.map(f => (
-                <th key={f} className="px-2 py-2 text-center font-mono text-slate-400 min-w-[36px]" title={FAMILY_META[f].label}>
-                  {f}
+                <th key={f} className="px-2 py-2 text-center font-semibold text-slate-400 min-w-[40px] text-[10px]" title={f}>
+                  {CATEGORY_ABBREV[f] ?? f}
                 </th>
               ))}
             </tr>
@@ -650,7 +651,7 @@ function MatrixView({ mappings, onSelect, selectedId }: {
             {mappings.map(m => {
               const threat = MAGERIT_THREATS.find(t => t.code === m.threatCode);
               const familiesCovered = new Set(
-                m.safeguards.map(sg => CATALOG_BY_CODE[sg.code]?.family).filter(Boolean)
+                m.safeguards.map(sg => (CATALOG_BY_CODE[sg.code] as { category?: string })?.category).filter(Boolean)
               );
               const lvl = getRiskLevel(m.inherentScore);
               const resLvl = getRiskLevel(m.residualScore);
@@ -686,7 +687,7 @@ function MatrixView({ mappings, onSelect, selectedId }: {
                   </td>
                   {SAFEGUARD_FAMILIES.map(family => {
                     const covered = familiesCovered.has(family);
-                    const sgsInFamily = m.safeguards.filter(sg => CATALOG_BY_CODE[sg.code]?.family === family);
+                    const sgsInFamily = m.safeguards.filter(sg => (CATALOG_BY_CODE[sg.code] as { category?: string })?.category === family);
                     const avgEff = sgsInFamily.length
                       ? Math.round(sgsInFamily.reduce((s, sg) => s + sg.effectiveness, 0) / sgsInFamily.length)
                       : 0;
@@ -726,7 +727,7 @@ function MatrixView({ mappings, onSelect, selectedId }: {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-bold text-slate-800">
-                Añadir salvaguarda [{quickAdd.family}]
+                Añadir control — {CATEGORY_ABBREV[quickAdd.family] ?? quickAdd.family}
               </p>
               <button onClick={() => setQuickAdd(null)} className="p-1 text-slate-400 hover:text-slate-600">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -734,15 +735,15 @@ function MatrixView({ mappings, onSelect, selectedId }: {
                 </svg>
               </button>
             </div>
-            <p className="text-xs text-slate-400">{FAMILY_META[quickAdd.family].label} · {FAMILY_META[quickAdd.family].section}</p>
+            <p className="text-xs text-slate-400">{quickAdd.family}</p>
             <select
               value={quickCode}
               onChange={e => setQuickCode(e.target.value)}
               className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-300"
             >
-              <option value="">— Selecciona salvaguarda —</option>
-              {SAFEGUARD_CATALOG.filter(s => s.family === quickAdd.family).map(s => (
-                <option key={s.code} value={s.code}>[{s.code}] {s.name}</option>
+              <option value="">— Selecciona control —</option>
+              {SAFEGUARD_CATALOG.filter(s => s.category === quickAdd.family).map(s => (
+                <option key={s.id} value={s.id}>[{s.isoIds.join(',')}] {s.name}</option>
               ))}
             </select>
             {quickCode && (

@@ -1,16 +1,10 @@
-/**
- * Store Zustand para el CRUD de salvaguardas MAGERIT §6.
- * §A4.3: "evaluación de la eficacia de las salvaguardas existentes
- *         en relación al riesgo que afrontan."
- */
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Safeguard, SafeguardStatus } from '../types';
+import type { Safeguard, SafeguardStatus, SafeguardResponsable } from '../types';
 
 let _counter = 1;
 function nextId(): string {
-  return `SG-${String(_counter++).padStart('000'.length, '0')}`;
+  return `SG-${String(_counter++).padStart(3, '0')}`;
 }
 
 interface SafeguardStore {
@@ -19,6 +13,7 @@ interface SafeguardStore {
   updateSafeguard: (id: string, data: Partial<Omit<Safeguard, 'id' | 'createdAt'>>) => void;
   deleteSafeguard: (id: string) => void;
   updateStatus: (id: string, status: SafeguardStatus) => void;
+  updateResponsable: (id: string, responsable: SafeguardResponsable | null) => void;
 }
 
 export const useSafeguardStore = create<SafeguardStore>()(
@@ -33,21 +28,14 @@ export const useSafeguardStore = create<SafeguardStore>()(
           const nums = existing.map(s => parseInt(s.id.replace('SG-', ''), 10)).filter(n => !isNaN(n));
           _counter = (Math.max(...nums) || 0) + 1;
         }
-        const newSafeguard: Safeguard = {
-          ...data,
-          id: nextId(),
-          createdAt: now,
-          updatedAt: now,
-        };
-        set(s => ({ safeguards: [...s.safeguards, newSafeguard] }));
+        const sg: Safeguard = { ...data, id: nextId(), createdAt: now, updatedAt: now };
+        set(s => ({ safeguards: [...s.safeguards, sg] }));
       },
 
       updateSafeguard(id, data) {
         set(s => ({
           safeguards: s.safeguards.map(sg =>
-            sg.id === id
-              ? { ...sg, ...data, updatedAt: new Date().toISOString() }
-              : sg
+            sg.id === id ? { ...sg, ...data, updatedAt: new Date().toISOString() } : sg
           ),
         }));
       },
@@ -59,13 +47,19 @@ export const useSafeguardStore = create<SafeguardStore>()(
       updateStatus(id, status) {
         set(s => ({
           safeguards: s.safeguards.map(sg =>
-            sg.id === id
-              ? { ...sg, status, updatedAt: new Date().toISOString() }
-              : sg
+            sg.id === id ? { ...sg, status, updatedAt: new Date().toISOString() } : sg
+          ),
+        }));
+      },
+
+      updateResponsable(id, responsable) {
+        set(s => ({
+          safeguards: s.safeguards.map(sg =>
+            sg.id === id ? { ...sg, responsable, updatedAt: new Date().toISOString() } : sg
           ),
         }));
       },
     }),
-    { name: 'magerit-safeguards' }
+    { name: 'magerit-safeguards-v2' }
   )
 );
