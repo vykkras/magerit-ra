@@ -145,7 +145,7 @@ export default function App() {
   const solicitud                     = useSolicitudStore();
   const { categoriaId, esHerramientaIA } = solicitud;
   const questionnaireStore            = useQuestionnaireStore();
-  const { answers, criticality, customQuestions, customRiskRefs, customSafeguardRefs, extraQuestions } = questionnaireStore;
+  const { answers, criticality, customQuestions, customRiskRefs, customSafeguardRefs, customResponsibility, extraQuestions } = questionnaireStore;
   const scenarioStore                 = useRiskScenarioStore();
   const { scenarios }                 = scenarioStore;
   const { categories }                = useCategoryStore();
@@ -197,6 +197,7 @@ export default function App() {
         customQuestions,
         customRiskRefs,
         customSafeguardRefs,
+        customResponsibility,
         extraQuestions,
         scenarios,
       },
@@ -223,9 +224,10 @@ export default function App() {
       answers:            snapshot.answers,
       criticality:        snapshot.criticality,
       customQuestions:    snapshot.customQuestions,
-      customRiskRefs:     snapshot.customRiskRefs,
-      customSafeguardRefs: snapshot.customSafeguardRefs,
-      extraQuestions:     snapshot.extraQuestions,
+      customRiskRefs:       snapshot.customRiskRefs,
+      customSafeguardRefs:  snapshot.customSafeguardRefs,
+      customResponsibility: snapshot.customResponsibility ?? {},
+      extraQuestions:       snapshot.extraQuestions,
     });
     scenarioStore.loadState(snapshot.scenarios);
     removeCompleted(ev.id);

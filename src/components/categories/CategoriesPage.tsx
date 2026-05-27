@@ -6,7 +6,7 @@ import { useQuestionnaireStore, type Answer, type Criticality, type ExtraQuestio
 import { useRiskScenarioStore } from '../../store/riskScenarioStore';
 import { MAGERIT_THREATS } from '../../data/threats.data';
 import { CATALOG_BY_CODE } from '../../data/safeguards.data';
-import { CATEGORY_QUESTIONNAIRES, DOMAIN_LABELS, type Question } from '../../data/questionnaires.data';
+import { CATEGORY_QUESTIONNAIRES, DOMAIN_LABELS, type Question, type QuestionResponsibility } from '../../data/questionnaires.data';
 import type { Category } from '../../store/categoryStore';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -602,8 +602,9 @@ function DBModal({ category, onClose }: { category: Category; onClose: () => voi
 
 export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?: string } = {}) {
   const { categories } = useCategoryStore();
-  const { answers, criticality, customQuestions, customRiskRefs, customSafeguardRefs, extraQuestions,
-          setAnswer, setCriticality, clearAnswers, addExtraQuestion, updateExtraQuestion, removeExtraQuestion } = useQuestionnaireStore();
+  const { answers, criticality, customQuestions, customRiskRefs, customSafeguardRefs, customResponsibility, extraQuestions,
+          setAnswer, setCriticality, clearAnswers, addExtraQuestion, updateExtraQuestion, removeExtraQuestion,
+          setCustomResponsibility } = useQuestionnaireStore();
 
   const lockedIdx = lockedCategoryId ? categories.findIndex(c => c.id === lockedCategoryId) : -1;
   const [activeIdx, setActiveIdx] = useState(lockedIdx >= 0 ? lockedIdx : 0);
@@ -611,7 +612,15 @@ export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?
   const [view, setView] = useState<'questionnaire' | 'scenario'>('questionnaire');
 
   const category        = categories[activeIdx];
-  const questions       = CATEGORY_QUESTIONNAIRES[category?.id] ?? [];
+  const allQuestions    = CATEGORY_QUESTIONNAIRES[category?.id] ?? [];
+  const customRespCat   = customResponsibility[category?.id] ?? {};
+
+  // Only show questions where effective responsibility is proveedor or ambos
+  function effectiveResp(q: Question): QuestionResponsibility {
+    return customRespCat[q.id] ?? q.responsibility;
+  }
+  const questions       = allQuestions.filter(q => effectiveResp(q) !== 'cliente');
+
   const categoryAnswers = answers[category?.id] ?? {};
   const critValue       = criticality[category?.id] ?? null;
   const customQ         = customQuestions[category?.id] ?? {};
@@ -799,9 +808,20 @@ export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?
                     </td>
 
                     <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
-                      <span className={`${s.respBadge} ${s[`resp_${q.responsibility ?? 'ambos'}`]}`}>
-                        {q.responsibility === 'proveedor' ? 'Proveedor' : q.responsibility === 'cliente' ? 'Cliente' : 'Ambos'}
-                      </span>
+                      {(() => {
+                        const cur = effectiveResp(q);
+                        return (
+                          <select
+                            className={`${s.respSelect} ${s[`resp_${cur}`]}`}
+                            value={cur}
+                            onChange={e => setCustomResponsibility(category.id, q.id, e.target.value as QuestionResponsibility)}
+                          >
+                            <option value="proveedor">Proveedor</option>
+                            <option value="ambos">Ambos</option>
+                            <option value="cliente">Cliente</option>
+                          </select>
+                        );
+                      })()}
                     </td>
 
                     <td>

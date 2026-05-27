@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { QuestionResponsibility } from '../data/questionnaires.data';
 
 export type Answer = 'yes' | 'no' | 'na' | null;
 export type Criticality = 'baja' | 'media' | 'alta' | 'critica' | null;
@@ -17,6 +18,7 @@ interface QuestionnaireStore {
   customQuestions: Record<string, Record<string, string>>;
   customRiskRefs: Record<string, Record<string, string[]>>;
   customSafeguardRefs: Record<string, Record<string, string[]>>;
+  customResponsibility: Record<string, Record<string, QuestionResponsibility>>;
   extraQuestions: Record<string, ExtraQuestion[]>;
   setAnswer: (categoryId: string, questionId: string, answer: Answer) => void;
   setCriticality: (categoryId: string, value: Criticality) => void;
@@ -26,6 +28,7 @@ interface QuestionnaireStore {
   resetCustomRiskRefs: (categoryId: string, questionId: string) => void;
   setCustomSafeguardRefs: (categoryId: string, questionId: string, codes: string[]) => void;
   resetCustomSafeguardRefs: (categoryId: string, questionId: string) => void;
+  setCustomResponsibility: (categoryId: string, questionId: string, value: QuestionResponsibility) => void;
   addExtraQuestion: (categoryId: string) => void;
   updateExtraQuestion: (categoryId: string, questionId: string, updates: Partial<ExtraQuestion>) => void;
   removeExtraQuestion: (categoryId: string, questionId: string) => void;
@@ -37,6 +40,7 @@ interface QuestionnaireStore {
     customQuestions: Record<string, Record<string, string>>;
     customRiskRefs: Record<string, Record<string, string[]>>;
     customSafeguardRefs: Record<string, Record<string, string[]>>;
+    customResponsibility: Record<string, Record<string, QuestionResponsibility>>;
     extraQuestions: Record<string, ExtraQuestion[]>;
   }) => void;
 }
@@ -49,6 +53,7 @@ export const useQuestionnaireStore = create<QuestionnaireStore>()(
       customQuestions: {},
       customRiskRefs: {},
       customSafeguardRefs: {},
+      customResponsibility: {},
       extraQuestions: {},
 
       setAnswer(categoryId, questionId, answer) {
@@ -115,6 +120,15 @@ export const useQuestionnaireStore = create<QuestionnaireStore>()(
         });
       },
 
+      setCustomResponsibility(categoryId, questionId, value) {
+        set(s => ({
+          customResponsibility: {
+            ...s.customResponsibility,
+            [categoryId]: { ...(s.customResponsibility[categoryId] ?? {}), [questionId]: value },
+          },
+        }));
+      },
+
       addExtraQuestion(categoryId) {
         set(s => {
           const existing = s.extraQuestions[categoryId] ?? [];
@@ -164,19 +178,21 @@ export const useQuestionnaireStore = create<QuestionnaireStore>()(
 
       resetCategory(categoryId) {
         set(s => {
-          const nextA  = { ...s.answers };
-          const nextC  = { ...s.criticality };
-          const nextQ  = { ...s.customQuestions };
-          const nextRR = { ...s.customRiskRefs };
-          const nextSR = { ...s.customSafeguardRefs };
-          const nextEQ = { ...s.extraQuestions };
+          const nextA    = { ...s.answers };
+          const nextC    = { ...s.criticality };
+          const nextQ    = { ...s.customQuestions };
+          const nextRR   = { ...s.customRiskRefs };
+          const nextSR   = { ...s.customSafeguardRefs };
+          const nextResp = { ...s.customResponsibility };
+          const nextEQ   = { ...s.extraQuestions };
           delete nextA[categoryId];
           delete nextC[categoryId];
           delete nextQ[categoryId];
           delete nextRR[categoryId];
           delete nextSR[categoryId];
+          delete nextResp[categoryId];
           delete nextEQ[categoryId];
-          return { answers: nextA, criticality: nextC, customQuestions: nextQ, customRiskRefs: nextRR, customSafeguardRefs: nextSR, extraQuestions: nextEQ };
+          return { answers: nextA, criticality: nextC, customQuestions: nextQ, customRiskRefs: nextRR, customSafeguardRefs: nextSR, customResponsibility: nextResp, extraQuestions: nextEQ };
         });
       },
     }),

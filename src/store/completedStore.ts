@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { SolicitudState } from './solicitudStore';
 import type { Answer, Criticality, ExtraQuestion } from './questionnaireStore';
+import type { QuestionResponsibility } from '../data/questionnaires.data';
 import type { ScenarioRow } from '../data/scenarios.data';
 
 export interface CompletedEvaluation {
@@ -28,6 +29,7 @@ export interface CompletedEvaluation {
     customQuestions: Record<string, Record<string, string>>;
     customRiskRefs: Record<string, Record<string, string[]>>;
     customSafeguardRefs: Record<string, Record<string, string[]>>;
+    customResponsibility: Record<string, Record<string, QuestionResponsibility>>;
     extraQuestions: Record<string, ExtraQuestion[]>;
     scenarios: Record<string, ScenarioRow[]>;
   };
