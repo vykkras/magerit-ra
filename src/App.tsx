@@ -11,6 +11,7 @@ import InfoGeneral from './components/fase1/InfoGeneral';
 import CuestionarioPreliminar from './components/fase1/CuestionarioPreliminar';
 import CategoriesPage from './components/categories/CategoriesPage';
 import PendingPage from './components/common/PendingPage';
+import ResponsibilityMatrixPage from './components/tprm/ResponsibilityMatrixPage';
 
 // ── Navigation model ──────────────────────────────────────────────────────────
 
@@ -21,6 +22,7 @@ type PageId =
   | 'categorizacion'
   | 'avanzado'
   | 'grc'
+  | 'matriz_responsabilidad'
   | 'tprm'
   | 'informe'
   | 'resultado'
@@ -56,18 +58,19 @@ const NAV: NavSection[] = [
     phase: 'Análisis y Evaluación',
     items: [
       { id: 'avanzado', num: 3, label: 'Cuestionario Avanzado',    pending: false },
-      { id: 'grc',      num: 4, label: 'Tareas de Evaluación GRC', pending: true  },
-      { id: 'tprm',     num: 5, label: 'Cuestionario TPRM',        pending: true  },
-      { id: 'informe',  num: 6, label: 'Informe de Evaluación',    pending: true  },
+      { id: 'grc',                    num: 4, label: 'Tareas de Evaluación GRC',      pending: true  },
+      { id: 'matriz_responsabilidad', num: 5, label: 'Matriz de Responsabilidades',    pending: false },
+      { id: 'tprm',                   num: 6, label: 'Cuestionario TPRM',              pending: true  },
+      { id: 'informe',                num: 7, label: 'Informe de Evaluación',          pending: true  },
     ],
   },
   {
     phaseNum: 'Fase 3',
     phase: 'Resultados',
     items: [
-      { id: 'resultado',  label: 'Resultado OK / KO',             pending: true },
-      { id: 'despliegue', num: 7, label: 'Solicitud de Despliegue', pending: true },
-      { id: 'inventario', num: 8, label: 'Inventario de Soluciones',pending: true },
+      { id: 'resultado',  label: 'Resultado OK / KO',              pending: true },
+      { id: 'despliegue', num: 8, label: 'Solicitud de Despliegue',  pending: true },
+      { id: 'inventario', num: 9, label: 'Inventario de Soluciones', pending: true },
     ],
   },
 ];
@@ -238,6 +241,7 @@ export default function App() {
       case 'home':        return <HomePage onStart={() => setPage('solicitud')} onReopen={reopenEvaluation} />;
       case 'solicitud':   return <InfoGeneral />;
       case 'preliminar':  return <CuestionarioPreliminar />;
+      case 'matriz_responsabilidad': return <ResponsibilityMatrixPage />;
       case 'avanzado':
         if (esHerramientaIA === true) {
           return (

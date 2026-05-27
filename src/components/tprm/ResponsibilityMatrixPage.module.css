@@ -1,0 +1,258 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #f1f5f9;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  color: #0f172a;
+  overflow: hidden;
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────────────────── */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.toolbarTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-right: 8px;
+}
+
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filterLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.select {
+  padding: 5px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+  background: #fff;
+  color: #0f172a;
+  cursor: pointer;
+  outline: none;
+}
+.select:focus { border-color: #3b82f6; }
+
+.resetBtn {
+  margin-left: auto;
+  padding: 6px 14px;
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.resetBtn:hover { background: #f8fafc; color: #ef4444; border-color: #fca5a5; }
+
+/* ── Stats bar ───────────────────────────────────────────────────────────────── */
+
+.stats {
+  display: flex;
+  gap: 24px;
+  padding: 10px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #475569;
+}
+
+.statDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.statVal {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* ── Table wrapper ───────────────────────────────────────────────────────────── */
+
+.tableWrap {
+  flex: 1;
+  overflow: auto;
+}
+
+.table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 860px;
+}
+
+/* ── Sticky header ───────────────────────────────────────────────────────────── */
+
+.thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.thId {
+  width: 64px;
+  min-width: 64px;
+  background: #0f172a;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 12px 12px;
+  text-align: left;
+  border-right: 1px solid #1e293b;
+}
+
+.thControl {
+  background: #0f172a;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 12px 16px;
+  text-align: left;
+  border-right: 1px solid #1e293b;
+}
+
+.thCat {
+  width: 120px;
+  min-width: 110px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 12px 10px;
+  text-align: center;
+  border-right: 1px solid #1e293b;
+  cursor: default;
+}
+
+.thCatShort {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.thCatFull {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  color: #64748b;
+  margin-top: 2px;
+  white-space: normal;
+  line-height: 1.3;
+}
+
+/* ── Domain group header ─────────────────────────────────────────────────────── */
+
+.domainRow td {
+  background: #1e293b;
+  color: #94a3b8;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 7px 16px;
+  border-top: 2px solid #334155;
+}
+
+/* ── Data rows ───────────────────────────────────────────────────────────────── */
+
+.tr {
+  border-bottom: 1px solid #e2e8f0;
+  transition: background 0.1s;
+}
+.tr:hover { background: #f8fafc; }
+
+.tdId {
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  border-right: 1px solid #e2e8f0;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.tdControl {
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #1e293b;
+  border-right: 1px solid #e2e8f0;
+  vertical-align: middle;
+  line-height: 1.4;
+}
+
+.tdCell {
+  padding: 8px 8px;
+  text-align: center;
+  border-right: 1px solid #e2e8f0;
+  vertical-align: middle;
+}
+
+/* ── Responsibility select ───────────────────────────────────────────────────── */
+
+.respSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  text-align: center;
+  width: 100%;
+  transition: opacity 0.15s;
+}
+.respSelect:hover { opacity: 0.85; }
+
+.respSelect option { background: #fff; color: #0f172a; }
+
+.resp_cliente    { background: #dcfce7; color: #166534; }
+.resp_proveedor  { background: #dbeafe; color: #1e40af; }
+.resp_compartido { background: #fef9c3; color: #854d0e; }
+.resp_na         { background: #f1f5f9; color: #94a3b8; }
+
+/* ── Modified indicator ──────────────────────────────────────────────────────── */
+
+.modified {
+  outline: 2px solid #f59e0b;
+  outline-offset: -2px;
+  border-radius: 20px;
+}
