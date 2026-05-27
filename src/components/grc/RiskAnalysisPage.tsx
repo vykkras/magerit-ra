@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useQuestionnaireStore } from '../../store/questionnaireStore';
-import { useCategoryStore } from '../../store/categoryStore';
+import { useSolicitudStore } from '../../store/solicitudStore';
 import { CATEGORY_QUESTIONNAIRES } from '../../data/questionnaires.data';
 import { THREAT_PROB, THREAT_IMPACT, CAT_THREATS } from '../../data/scenarios.data';
 import { MAGERIT_THREATS } from '../../data/threats.data';
@@ -22,20 +22,18 @@ const LEVEL_LABEL: Record<RiskLevel, string> = {
 };
 
 const PROB_LABELS = ['', 'Muy rara', 'Poco frec.', 'Posible', 'Frecuente'];
-const IMP_LABELS  = ['', 'Mínimo',   'Bajo',       'Medio',  'Alto'];
+const IMP_LABELS  = ['', 'Mínimo', 'Bajo', 'Medio', 'Alto'];
 
-// Heat colour for a P×I cell in the 4×4 matrix
 function heatBg(p: number, i: number): string {
   const sc = p * i;
-  if (sc >= 9) return '#fee2e2'; // red-100
-  if (sc >= 6) return '#fed7aa'; // orange-100
-  if (sc >= 4) return '#fef9c3'; // yellow-100
-  return '#dcfce7';              // green-100
+  if (sc >= 9) return '#fee2e2';
+  if (sc >= 6) return '#fed7aa';
+  if (sc >= 4) return '#fef9c3';
+  return '#dcfce7';
 }
 
-// Threat name lookup
-const THREAT_NAME: Record<string, string> = Object.fromEntries(
-  MAGERIT_THREATS.map(t => [t.code, t.name])
+const THREAT_META: Record<string, { name: string; description: string }> = Object.fromEntries(
+  MAGERIT_THREATS.map(t => [t.code, { name: t.name, description: t.description }])
 );
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -43,64 +41,73 @@ const THREAT_NAME: Record<string, string> = Object.fromEntries(
 interface ThreatRow {
   code: string;
   name: string;
+  description: string;
   prob: number;
   inherentImpact: number;
   inherentScore: number;
   inherentLevel: RiskLevel;
-  implementedSafeguards: string[]; // question texts answered 'yes'
-  missingSafeguards: string[];     // question texts answered 'no'
+  implementedSafeguards: string[];
+  missingSafeguards: string[];
   residualImpact: number;
   residualScore: number;
   residualLevel: RiskLevel;
-  reduction: number; // %
-  covered: boolean;  // at least one covering question exists
+  reduction: number;
+  covered: boolean;
+}
+
+// ── Tooltip ────────────────────────────────────────────────────────────────
+
+interface TooltipState {
+  code: string;
+  name: string;
+  description: string;
+  x: number;
+  y: number;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function RiskAnalysisPage() {
-  const { categories } = useCategoryStore();
+  const { categoriaId } = useSolicitudStore();
   const { answers, customResponsibility } = useQuestionnaireStore();
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [activeTab, setActiveTab] = useState<string | null>(null);
-
-  const category = activeTab
-    ? categories.find(c => c.id === activeTab) ?? categories[0]
-    : categories[0];
-
-  const catId = category?.id ?? '';
+  const catId = categoriaId ?? '';
 
   const rows = useMemo<ThreatRow[]>(() => {
     if (!catId) return [];
-    const threats  = CAT_THREATS[catId] ?? [];
+    const threats   = CAT_THREATS[catId] ?? [];
     const questions = CATEGORY_QUESTIONNAIRES[catId] ?? [];
     const catAnswers = answers[catId] ?? {};
     const custResp   = customResponsibility[catId] ?? {};
 
-    // Only count questions that are actually shown (proveedor or ambos)
     const visibleQs = questions.filter(q => {
       const resp = custResp[q.id] ?? q.responsibility;
       return resp !== 'cliente';
     });
 
     return threats.map(code => {
-      const prob          = THREAT_PROB[code]   ?? 2;
+      const prob           = THREAT_PROB[code]   ?? 2;
       const inherentImpact = THREAT_IMPACT[code] ?? 2;
       const inherentScore  = prob * inherentImpact;
 
       const covering = visibleQs.filter(q => q.riskRefs.includes(code));
-      const yesQs  = covering.filter(q => catAnswers[q.id] === 'yes');
-      const noQs   = covering.filter(q => catAnswers[q.id] === 'no');
+      const yesQs   = covering.filter(q => catAnswers[q.id] === 'yes');
+      const noQs    = covering.filter(q => catAnswers[q.id] === 'no');
 
-      const residualImpact = Math.max(1, inherentImpact - yesQs.length) as number;
+      const residualImpact = Math.max(1, inherentImpact - yesQs.length);
       const residualScore  = prob * residualImpact;
       const reduction = inherentScore > 0
         ? Math.round((1 - residualScore / inherentScore) * 100)
         : 0;
 
+      const meta = THREAT_META[code] ?? { name: code, description: '' };
+
       return {
         code,
-        name: THREAT_NAME[code] ?? code,
+        name: meta.name,
+        description: meta.description,
         prob,
         inherentImpact,
         inherentScore,
@@ -116,13 +123,11 @@ export default function RiskAnalysisPage() {
     });
   }, [catId, answers, customResponsibility]);
 
-  // ── Summary stats ──────────────────────────────────────────────────────
-
   const stats = useMemo(() => {
-    const total      = rows.length;
-    const avgInh     = total ? rows.reduce((a, r) => a + r.inherentScore, 0) / total : 0;
-    const avgRes     = total ? rows.reduce((a, r) => a + r.residualScore, 0) / total : 0;
-    const reduction  = avgInh > 0 ? Math.round((1 - avgRes / avgInh) * 100) : 0;
+    const total  = rows.length;
+    const avgInh = total ? rows.reduce((a, r) => a + r.inherentScore, 0) / total : 0;
+    const avgRes = total ? rows.reduce((a, r) => a + r.residualScore, 0) / total : 0;
+    const reduction = avgInh > 0 ? Math.round((1 - avgRes / avgInh) * 100) : 0;
     const byLevel = (fn: (r: ThreatRow) => RiskLevel) =>
       Object.fromEntries(
         (['critico', 'alto', 'medio', 'bajo'] as RiskLevel[]).map(lv => [
@@ -130,7 +135,8 @@ export default function RiskAnalysisPage() {
         ])
       ) as Record<RiskLevel, number>;
     return {
-      total, avgInh: Math.round(avgInh * 10) / 10,
+      total,
+      avgInh: Math.round(avgInh * 10) / 10,
       avgRes: Math.round(avgRes * 10) / 10,
       reduction,
       inherent: byLevel(r => r.inherentLevel),
@@ -138,109 +144,124 @@ export default function RiskAnalysisPage() {
     };
   }, [rows]);
 
-  // ── 4×4 matrix data ───────────────────────────────────────────────────
-
-  // threats grouped by (prob, inherentImpact) and (prob, residualImpact)
-  type MatrixCell = { inherent: string[]; residual: string[] };
+  // Build matrix cells: for each (prob, impact) cell, which threats are there inherent vs residual
+  type MatrixCell = { inherent: ThreatRow[]; residual: ThreatRow[] };
   const matrix = useMemo(() => {
     const m: Record<string, MatrixCell> = {};
     const key = (p: number, i: number) => `${p}-${i}`;
     rows.forEach(r => {
       const ki = key(r.prob, r.inherentImpact);
       if (!m[ki]) m[ki] = { inherent: [], residual: [] };
-      m[ki].inherent.push(r.code);
+      m[ki].inherent.push(r);
       const kr = key(r.prob, r.residualImpact);
       if (!m[kr]) m[kr] = { inherent: [], residual: [] };
-      m[kr].residual.push(r.code);
+      // avoid duplicating if inherent === residual position
+      if (r.residualImpact !== r.inherentImpact) {
+        m[kr].residual.push(r);
+      }
     });
     return m;
   }, [rows]);
 
-  if (!category) {
-    return <div className={s.empty}>Sin categorías activas.</div>;
+  function showTooltip(r: ThreatRow, e: React.MouseEvent) {
+    if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
+    setTooltip({ code: r.code, name: r.name, description: r.description, x: e.clientX, y: e.clientY });
   }
 
-  const activeCatId = activeTab ?? catId;
+  function hideTooltip() {
+    tooltipTimer.current = setTimeout(() => setTooltip(null), 120);
+  }
+
+  if (!catId) {
+    return (
+      <div className={s.empty}>
+        Completa primero el cuestionario para ver el análisis de riesgos.
+      </div>
+    );
+  }
 
   return (
     <div className={s.page}>
-      {/* ── Tabs ────────────────────────────────────────────────────────── */}
-      <div className={s.tabs}>
-        {categories.map(cat => (
-          <button
-            key={cat.id}
-            className={`${s.tab} ${(activeTab ?? catId) === cat.id ? s.tabActive : ''}`}
-            onClick={() => setActiveTab(cat.id)}
-          >
-            {cat.name}
-          </button>
-        ))}
+      {/* ── Stats bar ────────────────────────────────────────────────────── */}
+      <div className={s.statsBar}>
+        <StatChip label="Amenazas" value={String(stats.total)} />
+        <div className={s.divider} />
+        <StatChip label="Riesgo inherente medio" value={String(stats.avgInh)} />
+        <StatChip label="Riesgo residual medio"  value={String(stats.avgRes)} />
+        <StatChip label="Reducción global" value={`${stats.reduction}%`} accent />
+        <div className={s.divider} />
+        <div className={s.levelChips}>
+          {(['critico','alto','medio','bajo'] as RiskLevel[]).map(lv => (
+            <span key={lv} className={`${s.lvChip} ${s[`lv_${lv}`]}`}>
+              {LEVEL_LABEL[lv]}: {stats.residual[lv]}
+            </span>
+          ))}
+        </div>
       </div>
 
       <div className={s.content}>
-        {/* ── Stats bar ──────────────────────────────────────────────── */}
-        <div className={s.statsBar}>
-          <StatChip label="Amenazas" value={String(stats.total)} />
-          <StatChip label="Riesgo inherente medio" value={String(stats.avgInh)} />
-          <StatChip label="Riesgo residual medio"  value={String(stats.avgRes)} />
-          <StatChip label="Reducción global" value={`${stats.reduction}%`} accent />
-          <div className={s.levelChips}>
-            {(['critico','alto','medio','bajo'] as RiskLevel[]).map(lv => (
-              <span key={lv} className={`${s.lvChip} ${s[`lv_${lv}`]}`}>
-                {LEVEL_LABEL[lv]}: {stats.residual[lv]}
-              </span>
-            ))}
-          </div>
-        </div>
-
         <div className={s.mainRow}>
-          {/* ── 4×4 Matrix heatmap ───────────────────────────────────── */}
+          {/* ── 4×4 Risk Matrix ──────────────────────────────────────── */}
           <div className={s.matrixWrap}>
             <h3 className={s.sectionTitle}>Matriz de Riesgo</h3>
             <div className={s.matrixLegendRow}>
-              <span className={s.legendDot} style={{ background: '#1e3a5f' }} />Inherente
-              <span className={s.legendDot} style={{ background: '#16a34a', marginLeft: 12 }} />Residual
+              <span className={s.legendDot} style={{ background: '#1e3a5f' }} />
+              <span>Inherente</span>
+              <span className={s.legendDot} style={{ background: '#16a34a', marginLeft: 10 }} />
+              <span>Residual</span>
             </div>
-            <div className={s.matrix}>
-              {/* Y axis label */}
-              <div className={s.yAxisLabel}>Probabilidad →</div>
-              {/* Grid: rows = prob 4→1, cols = impact 1→4 */}
-              <div className={s.grid}>
-                {[4,3,2,1].map(p => (
-                  <div key={p} className={s.matrixRow}>
-                    <div className={s.axisCell}>{PROB_LABELS[p]}</div>
-                    {[1,2,3,4].map(i => {
-                      const ki = `${p}-${i}`;
-                      const cell = matrix[ki] ?? { inherent: [], residual: [] };
-                      const bg = heatBg(p, i);
-                      return (
-                        <div key={i} className={s.cell} style={{ background: bg }}>
-                          {cell.inherent.map(c => (
-                            <span key={`i-${c}`} className={s.dotInherent} title={`Inherente: ${c}`}>{c}</span>
-                          ))}
-                          {cell.residual.map(c => (
-                            <span key={`r-${c}`} className={s.dotResidual} title={`Residual: ${c}`}>{c}</span>
-                          ))}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-                {/* X axis */}
-                <div className={s.matrixRow}>
-                  <div className={s.axisCell} />
-                  {[1,2,3,4].map(i => (
-                    <div key={i} className={s.xAxisCell}>{IMP_LABELS[i]}</div>
-                  ))}
+            <div className={s.grid}>
+              {[4,3,2,1].map(p => (
+                <div key={p} className={s.matrixRow}>
+                  <div className={s.axisCell}>{PROB_LABELS[p]}</div>
+                  {[1,2,3,4].map(i => {
+                    const cell = matrix[`${p}-${i}`] ?? { inherent: [], residual: [] };
+                    return (
+                      <div key={i} className={s.cell} style={{ background: heatBg(p, i) }}>
+                        {cell.inherent.map(r => (
+                          <span
+                            key={`i-${r.code}`}
+                            className={s.dotInherent}
+                            onMouseEnter={e => showTooltip(r, e)}
+                            onMouseMove={e => showTooltip(r, e)}
+                            onMouseLeave={hideTooltip}
+                          >
+                            {r.code}
+                          </span>
+                        ))}
+                        {cell.residual.map(r => (
+                          <span
+                            key={`r-${r.code}`}
+                            className={s.dotResidual}
+                            onMouseEnter={e => showTooltip(r, e)}
+                            onMouseMove={e => showTooltip(r, e)}
+                            onMouseLeave={hideTooltip}
+                          >
+                            {r.code}
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  })}
                 </div>
+              ))}
+              {/* X axis row */}
+              <div className={s.matrixRow}>
+                <div className={s.axisCell} />
+                {[1,2,3,4].map(i => (
+                  <div key={i} className={s.xAxisCell}>{IMP_LABELS[i]}</div>
+                ))}
               </div>
-              <div className={s.xAxisLabel}>← Impacto</div>
+            </div>
+            <div className={s.axisLabels}>
+              <span className={s.yAxisLabel}>↑ Probabilidad</span>
+              <span className={s.xAxisLabel}>Impacto →</span>
             </div>
           </div>
 
-          {/* ── Level breakdown ──────────────────────────────────────── */}
+          {/* ── Level breakdown ────────────────────────────────────── */}
           <div className={s.breakdownWrap}>
-            <h3 className={s.sectionTitle}>Niveles de Riesgo</h3>
+            <h3 className={s.sectionTitle}>Distribución por Nivel</h3>
             <div className={s.breakdownGrid}>
               {(['critico','alto','medio','bajo'] as RiskLevel[]).map(lv => (
                 <div key={lv} className={`${s.breakdownCard} ${s[`card_${lv}`]}`}>
@@ -262,7 +283,7 @@ export default function RiskAnalysisPage() {
           </div>
         </div>
 
-        {/* ── Risk table ─────────────────────────────────────────────── */}
+        {/* ── Threat table ───────────────────────────────────────────── */}
         <div className={s.tableWrap}>
           <h3 className={s.sectionTitle}>Detalle por Amenaza</h3>
           <table className={s.table}>
@@ -272,11 +293,11 @@ export default function RiskAnalysisPage() {
                 <th className={s.thName}>Descripción</th>
                 <th className={s.thNum}>Prob.</th>
                 <th className={s.thNum}>Imp. Inh.</th>
-                <th className={s.thScore}>Riesgo Inh.</th>
+                <th className={s.thScore}>Riesgo Inherente</th>
                 <th className={s.thSafeguards}>Salvaguardas activas</th>
                 <th className={s.thSafeguards}>Salvaguardas pendientes</th>
                 <th className={s.thNum}>Imp. Res.</th>
-                <th className={s.thScore}>Riesgo Res.</th>
+                <th className={s.thScore}>Riesgo Residual</th>
                 <th className={s.thNum}>Reducción</th>
               </tr>
             </thead>
@@ -327,6 +348,22 @@ export default function RiskAnalysisPage() {
           </table>
         </div>
       </div>
+
+      {/* ── Tooltip ──────────────────────────────────────────────────────── */}
+      {tooltip && (
+        <div
+          className={s.tooltip}
+          style={{ left: tooltip.x + 14, top: tooltip.y - 10 }}
+          onMouseEnter={() => { if (tooltipTimer.current) clearTimeout(tooltipTimer.current); }}
+          onMouseLeave={hideTooltip}
+        >
+          <div className={s.tooltipCode}>{tooltip.code}</div>
+          <div className={s.tooltipName}>{tooltip.name}</div>
+          {tooltip.description && (
+            <div className={s.tooltipDesc}>{tooltip.description}</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
