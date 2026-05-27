@@ -7,6 +7,7 @@ import { useRiskScenarioStore } from '../../store/riskScenarioStore';
 import { MAGERIT_THREATS } from '../../data/threats.data';
 import { CATALOG_BY_CODE } from '../../data/safeguards.data';
 import { CATEGORY_QUESTIONNAIRES, DOMAIN_LABELS, type Question, type QuestionResponsibility } from '../../data/questionnaires.data';
+import { avgMaturity } from '../../data/maturityLevels.data';
 import type { Category } from '../../store/categoryStore';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -805,6 +806,16 @@ export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?
                       <span className={`${s.respBadge} ${s[`domain_${q.domain ?? 'tecnologico'}`]}`}>
                         {DOMAIN_LABELS[q.domain ?? 'tecnologico']}
                       </span>
+                      {(() => {
+                        const refs = customSR?.[q.id] ?? q.safeguardRefs;
+                        const mat  = Math.round(avgMaturity(refs) * 10) / 10;
+                        const cls  = mat >= 5 ? s.mat5 : mat >= 4 ? s.mat4 : mat >= 3 ? s.mat3 : mat >= 2 ? s.mat2 : s.mat1;
+                        return (
+                          <span className={`${s.matBadge} ${cls}`} title={`Madurez media controles: ${mat}/5`}>
+                            M:{mat}
+                          </span>
+                        );
+                      })()}
                     </td>
 
                     <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>

@@ -320,11 +320,12 @@
   white-space: nowrap;
 }
 
-.thCode { width: 68px; }
-.thName { min-width: 150px; }
-.thNum  { width: 58px; text-align: center !important; }
-.thScore { width: 120px; }
-.thSafeguards { min-width: 160px; }
+.thCode { width: 64px; }
+.thName { min-width: 130px; }
+.thNum  { width: 46px; text-align: center !important; }
+.thScore { width: 110px; }
+.thMat  { width: 140px; }
+.thSafeguards { min-width: 140px; }
 
 .tr {
   border-bottom: 1px solid #e2e8f0;
@@ -402,6 +403,31 @@
 
 .reductionPos  { color: #059669; font-weight: 700; }
 .reductionZero { color: #94a3b8; }
+
+/* ── Maturity cells ──────────────────────────────────────────────────────── */
+
+.tdMat {
+  padding: 8px 10px;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.matBadge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.matRed {
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #059669;
+}
 
 /* ── Tooltip ─────────────────────────────────────────────────────────────── */
 
