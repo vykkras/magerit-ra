@@ -55,19 +55,6 @@
 }
 .select:focus { border-color: #3b82f6; }
 
-.resetBtn {
-  padding: 6px 14px;
-  background: none;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  font-size: 12.5px;
-  font-weight: 500;
-  color: #64748b;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.resetBtn:hover { background: #f8fafc; color: #ef4444; border-color: #fca5a5; }
-
 .exportBtn {
   margin-left: auto;
   padding: 7px 16px;
@@ -124,7 +111,7 @@
 .table {
   border-collapse: collapse;
   width: 100%;
-  min-width: 860px;
+  min-width: 700px;
 }
 
 /* ── Sticky header ───────────────────────────────────────────────────────────── */
@@ -136,8 +123,8 @@
 }
 
 .thId {
-  width: 64px;
-  min-width: 64px;
+  width: 80px;
+  min-width: 80px;
   background: #0f172a;
   color: #94a3b8;
   font-size: 11px;
@@ -161,47 +148,72 @@
   border-right: 1px solid #1e293b;
 }
 
-.thCat {
+.thDomain {
   width: 120px;
   min-width: 110px;
   background: #0f172a;
-  color: #e2e8f0;
-  font-size: 11.5px;
+  color: #94a3b8;
+  font-size: 11px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   padding: 12px 10px;
   text-align: center;
   border-right: 1px solid #1e293b;
-  cursor: default;
 }
 
-.thCatShort {
-  display: block;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #f1f5f9;
-}
-
-.thCatFull {
-  display: block;
-  font-size: 10px;
-  font-weight: 400;
-  color: #64748b;
-  margin-top: 2px;
-  white-space: normal;
-  line-height: 1.3;
-}
-
-/* ── Domain group header ─────────────────────────────────────────────────────── */
-
-.domainRow td {
-  background: #1e293b;
+.thResp {
+  width: 140px;
+  min-width: 130px;
+  background: #0f172a;
   color: #94a3b8;
-  font-size: 11.5px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 12px 10px;
+  text-align: center;
+  border-right: 1px solid #1e293b;
+}
+
+.thRisk {
+  width: 130px;
+  min-width: 120px;
+  background: #0f172a;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 12px 10px;
+  text-align: center;
+}
+
+/* ── Category group header ───────────────────────────────────────────────────── */
+
+.categoryRow td {
+  background: #1e3a5f;
+  color: #e2e8f0;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  padding: 7px 16px;
-  border-top: 2px solid #334155;
+  padding: 9px 16px;
+  border-top: 3px solid #0f172a;
+}
+
+/* ── Domain sub-header ───────────────────────────────────────────────────────── */
+
+.domainRow td {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 6px 20px;
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 /* ── Data rows ───────────────────────────────────────────────────────────────── */
@@ -238,6 +250,28 @@
   vertical-align: middle;
 }
 
+.tdRisk {
+  padding: 8px 10px;
+  vertical-align: middle;
+  text-align: left;
+}
+
+/* ── Domain badge ────────────────────────────────────────────────────────────── */
+
+.domainBadge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.dom_organizativo { background: #f3e8ff; color: #6b21a8; }
+.dom_personas     { background: #fce7f3; color: #9d174d; }
+.dom_fisico       { background: #ffedd5; color: #9a3412; }
+.dom_tecnologico  { background: #e0f2fe; color: #0c4a6e; }
+
 /* ── Responsibility select ───────────────────────────────────────────────────── */
 
 .respSelect {
@@ -255,13 +289,11 @@
   transition: opacity 0.15s;
 }
 .respSelect:hover { opacity: 0.85; }
-
 .respSelect option { background: #fff; color: #0f172a; }
 
-.resp_cliente    { background: #dcfce7; color: #166534; }
-.resp_proveedor  { background: #dbeafe; color: #1e40af; }
-.resp_compartido { background: #fef9c3; color: #854d0e; }
-.resp_na         { background: #f1f5f9; color: #94a3b8; }
+.resp_proveedor { background: #dbeafe; color: #1e40af; }
+.resp_cliente   { background: #d1fae5; color: #166534; }
+.resp_ambos     { background: #fef9c3; color: #854d0e; }
 
 /* ── Modified indicator ──────────────────────────────────────────────────────── */
 
@@ -269,4 +301,19 @@
   outline: 2px solid #f59e0b;
   outline-offset: -2px;
   border-radius: 20px;
+}
+
+/* ── Risk tags ───────────────────────────────────────────────────────────────── */
+
+.riskTag {
+  display: inline-block;
+  padding: 1px 6px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  margin: 1px 2px;
+  white-space: nowrap;
 }

@@ -2,219 +2,269 @@ import { useState, useMemo } from 'react';
 import ExcelJS from 'exceljs';
 import s from './ResponsibilityMatrixPage.module.css';
 import {
-  RESPONSIBILITY_MATRIX,
-  CATEGORY_KEYS,
-  CATEGORY_LABELS,
+  CATEGORY_QUESTIONNAIRES,
   DOMAIN_LABELS,
-  RESPONSIBILITY_LABELS,
-  getDomain,
-  type CategoryKey,
-  type Responsibility,
-  type DomainKey,
-} from '../../data/responsibilityMatrix.data';
-import { useResponsibilityMatrixStore } from '../../store/responsibilityMatrixStore';
+  type Question,
+  type QuestionDomain,
+  type QuestionResponsibility,
+} from '../../data/questionnaires.data';
+import { useQuestionnaireStore } from '../../store/questionnaireStore';
+import { useCategoryStore } from '../../store/categoryStore';
 
-// Excel fill colors per responsibility value (ARGB)
-const XL_FILLS: Record<Responsibility, string> = {
-  cliente:    'FFD1FAE5', // green-100
-  proveedor:  'FFDBEAFE', // blue-100
-  compartido: 'FFFEF9C3', // yellow-100
-  na:         'FFF1F5F9', // slate-100
-};
-const XL_FONTS: Record<Responsibility, string> = {
-  cliente:    'FF166534',
-  proveedor:  'FF1E40AF',
-  compartido: 'FF854D0E',
-  na:         'FF94A3B8',
-};
-const DOMAIN_FILL = 'FF1E293B';
+// ── Constants ──────────────────────────────────────────────────────────────
 
-async function exportToExcel(getResp: (id: string, cat: CategoryKey) => Responsibility) {
+const RESP_LABELS: Record<QuestionResponsibility, string> = {
+  proveedor: 'Proveedor',
+  cliente:   'Cliente',
+  ambos:     'Ambos',
+};
+
+const DOMAIN_ORDER: QuestionDomain[] = ['organizativo', 'personas', 'fisico', 'tecnologico'];
+
+const RESP_OPTIONS: QuestionResponsibility[] = ['proveedor', 'ambos', 'cliente'];
+
+const XL_FILLS: Record<QuestionResponsibility, string> = {
+  proveedor: 'FFDBEAFE',
+  cliente:   'FFD1FAE5',
+  ambos:     'FFFEF9C3',
+};
+const XL_FONTS: Record<QuestionResponsibility, string> = {
+  proveedor: 'FF1E40AF',
+  cliente:   'FF166534',
+  ambos:     'FF854D0E',
+};
+const DOMAIN_FILLS: Record<QuestionDomain, string> = {
+  organizativo: 'FFF3E8FF',
+  personas:     'FFFCE7F3',
+  fisico:       'FFFFEDD5',
+  tecnologico:  'FFE0F2FE',
+};
+const DOMAIN_FONTS: Record<QuestionDomain, string> = {
+  organizativo: 'FF6B21A8',
+  personas:     'FF9D174D',
+  fisico:       'FF9A3412',
+  tecnologico:  'FF0C4A6E',
+};
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+interface MatrixRow {
+  categoryId:   string;
+  categoryName: string;
+  question:     Question;
+  effectiveResp: QuestionResponsibility;
+}
+
+// ── Excel export ───────────────────────────────────────────────────────────
+
+async function exportToExcel(rows: MatrixRow[]) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'MAGERIT Risk';
   const ws = wb.addWorksheet('Matriz de Responsabilidades');
 
-  // Column widths
   ws.columns = [
-    { width: 8  },  // ID
-    { width: 58 },  // Control
-    ...CATEGORY_KEYS.map(() => ({ width: 18 })),
+    { width: 10  }, // ID
+    { width: 65  }, // Pregunta
+    { width: 22  }, // Categoría
+    { width: 16  }, // Dominio
+    { width: 15  }, // Responsabilidad
+    { width: 20  }, // Amenazas ref
   ];
 
-  // ── Title row ──
-  const titleRow = ws.addRow(['Matriz de Responsabilidades ISO 27001:2022']);
-  ws.mergeCells(`A1:G1`);
-  titleRow.getCell(1).font  = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
-  titleRow.getCell(1).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+  // Title
+  const titleRow = ws.addRow(['Matriz de Responsabilidades — Cuestionario de Proveedores']);
+  ws.mergeCells('A1:F1');
+  titleRow.getCell(1).font      = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+  titleRow.getCell(1).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
   titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
   titleRow.height = 28;
 
-  // ── Date row ──
-  const dateRow = ws.addRow([`Generado: ${new Date().toLocaleDateString('es-ES')}   ·   ${RESPONSIBILITY_MATRIX.length} controles × ${CATEGORY_KEYS.length} categorías`]);
-  ws.mergeCells(`A2:G2`);
+  const dateRow = ws.addRow([`Generado: ${new Date().toLocaleDateString('es-ES')}   ·   ${rows.length} preguntas`]);
+  ws.mergeCells('A2:F2');
   dateRow.getCell(1).font      = { size: 10, italic: true, color: { argb: 'FF64748B' } };
   dateRow.getCell(1).alignment = { horizontal: 'center' };
-  dateRow.height = 18;
+  ws.addRow([]);
 
-  ws.addRow([]); // spacer
-
-  // ── Header row ──
-  const hdrRow = ws.addRow(['ID', 'Control ISO 27001:2022', ...CATEGORY_KEYS.map(k => CATEGORY_LABELS[k].short)]);
-  hdrRow.height = 36;
-  hdrRow.eachCell(cell => {
+  // Header
+  const hdr = ws.addRow(['ID', 'Pregunta', 'Categoría', 'Dominio', 'Responsabilidad', 'Refs. Amenaza']);
+  hdr.height = 28;
+  hdr.eachCell(cell => {
     cell.font      = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
     cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
     cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-    cell.border    = { bottom: { style: 'medium', color: { argb: 'FF334155' } } };
   });
-  hdrRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
-  hdrRow.getCell(2).alignment = { horizontal: 'left', vertical: 'middle' };
+  hdr.getCell(2).alignment = { horizontal: 'left', vertical: 'middle' };
 
-  // Freeze header area
   ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 4 }];
 
-  // ── Data rows grouped by domain ──
-  const domainOrder: DomainKey[] = ['5', '6', '7', '8'];
-  let rowIdx = 5;
+  // Group by category
+  const byCategory = new Map<string, MatrixRow[]>();
+  rows.forEach(r => {
+    if (!byCategory.has(r.categoryId)) byCategory.set(r.categoryId, []);
+    byCategory.get(r.categoryId)!.push(r);
+  });
 
-  for (const domain of domainOrder) {
-    const entries = RESPONSIBILITY_MATRIX.filter(e => getDomain(e.id) === domain);
-    if (!entries.length) continue;
+  for (const [, catRows] of byCategory) {
+    const catName = catRows[0].categoryName;
+    const catHeader = ws.addRow([catName]);
+    ws.mergeCells(`A${ws.rowCount}:F${ws.rowCount}`);
+    catHeader.getCell(1).font      = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+    catHeader.getCell(1).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } };
+    catHeader.getCell(1).alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+    catHeader.height = 22;
 
-    // Domain header
-    const domRow = ws.addRow([DOMAIN_LABELS[domain]]);
-    ws.mergeCells(`A${rowIdx}:G${rowIdx}`);
-    domRow.getCell(1).font      = { bold: true, size: 10.5, color: { argb: 'FF94A3B8' }, italic: false };
-    domRow.getCell(1).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: DOMAIN_FILL } };
-    domRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
-    domRow.height = 20;
-    rowIdx++;
+    // Group by domain within category
+    const byDomain = new Map<QuestionDomain, MatrixRow[]>();
+    catRows.forEach(r => {
+      const d = r.question.domain;
+      if (!byDomain.has(d)) byDomain.set(d, []);
+      byDomain.get(d)!.push(r);
+    });
 
-    for (const entry of entries) {
-      const respValues = CATEGORY_KEYS.map(cat => RESPONSIBILITY_LABELS[getResp(entry.id, cat)]);
-      const dataRow = ws.addRow([entry.id, entry.control, ...respValues]);
-      dataRow.height = 18;
+    for (const domain of DOMAIN_ORDER) {
+      const domRows = byDomain.get(domain);
+      if (!domRows?.length) continue;
 
-      // ID cell
-      dataRow.getCell(1).font      = { bold: true, size: 10, color: { argb: 'FF475569' } };
-      dataRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      const domHeader = ws.addRow([DOMAIN_LABELS[domain]]);
+      ws.mergeCells(`A${ws.rowCount}:F${ws.rowCount}`);
+      domHeader.getCell(1).font      = { bold: true, size: 10, color: { argb: DOMAIN_FONTS[domain] } };
+      domHeader.getCell(1).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: DOMAIN_FILLS[domain] } };
+      domHeader.getCell(1).alignment = { horizontal: 'left', vertical: 'middle', indent: 2 };
+      domHeader.height = 18;
 
-      // Control name cell
-      dataRow.getCell(2).font      = { size: 10, color: { argb: 'FF1E293B' } };
-      dataRow.getCell(2).alignment = { horizontal: 'left', vertical: 'middle', wrapText: false };
+      for (const r of domRows) {
+        const q = r.question;
+        const row = ws.addRow([
+          q.id,
+          q.text,
+          r.categoryName,
+          DOMAIN_LABELS[q.domain],
+          RESP_LABELS[r.effectiveResp],
+          q.riskRefs.join(', '),
+        ]);
+        row.height = 20;
 
-      // Responsibility cells (cols 3–7)
-      CATEGORY_KEYS.forEach((cat, i) => {
-        const val   = getResp(entry.id, cat);
-        const cell  = dataRow.getCell(3 + i);
-        cell.font      = { bold: true, size: 10, color: { argb: XL_FONTS[val] } };
-        cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL_FILLS[val] } };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
-        cell.border    = { bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } } };
-      });
+        row.getCell(1).font      = { size: 10, bold: true, color: { argb: 'FF475569' } };
+        row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
 
-      // Bottom border on control cells
-      dataRow.getCell(1).border = { bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } } };
-      dataRow.getCell(2).border = { bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } } };
+        row.getCell(2).font      = { size: 10, color: { argb: 'FF1E293B' } };
+        row.getCell(2).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
 
-      rowIdx++;
+        row.getCell(3).font      = { size: 10, color: { argb: 'FF475569' } };
+        row.getCell(3).alignment = { horizontal: 'left', vertical: 'middle' };
+
+        row.getCell(4).font      = { size: 10, color: { argb: DOMAIN_FONTS[q.domain] } };
+        row.getCell(4).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: DOMAIN_FILLS[q.domain] } };
+        row.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' };
+
+        const resp = r.effectiveResp;
+        row.getCell(5).font      = { bold: true, size: 10, color: { argb: XL_FONTS[resp] } };
+        row.getCell(5).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL_FILLS[resp] } };
+        row.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
+
+        row.getCell(6).font      = { size: 10, color: { argb: 'FF64748B' } };
+        row.getCell(6).alignment = { horizontal: 'left', vertical: 'middle' };
+
+        row.eachCell(cell => {
+          cell.border = { bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } } };
+        });
+      }
     }
-  }
-
-  // ── Legend sheet ──
-  const leg = wb.addWorksheet('Leyenda');
-  leg.columns = [{ width: 18 }, { width: 60 }];
-  const legTitle = leg.addRow(['Leyenda de responsabilidades']);
-  legTitle.getCell(1).font = { bold: true, size: 12 };
-  leg.addRow([]);
-  const legends: [Responsibility, string][] = [
-    ['cliente',    'El cliente (organización solicitante) es responsable de implementar y mantener este control.'],
-    ['proveedor',  'El proveedor es responsable de implementar y mantener este control.'],
-    ['compartido', 'Responsabilidad compartida: ambas partes deben implementar y coordinar este control.'],
-    ['na',         'No aplica para esta categoría de adquisición.'],
-  ];
-  for (const [val, desc] of legends) {
-    const r = leg.addRow([RESPONSIBILITY_LABELS[val], desc]);
-    r.getCell(1).font = { bold: true, size: 10, color: { argb: XL_FONTS[val] } };
-    r.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL_FILLS[val] } };
-    r.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-    r.getCell(2).font = { size: 10 };
-    r.height = 20;
-    leg.addRow([]);
   }
 
   const buf  = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
-  a.href = url;
-  a.download = `matriz-responsabilidades-iso27001-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  a.href     = url;
+  a.download = `matriz-responsabilidades-${new Date().toISOString().slice(0, 10)}.xlsx`;
   a.click();
   URL.revokeObjectURL(url);
 }
 
-const RESP_OPTIONS: Responsibility[] = ['cliente', 'proveedor', 'compartido', 'na'];
-
-const STAT_COLORS: Record<Responsibility, string> = {
-  cliente:    '#4ade80',
-  proveedor:  '#60a5fa',
-  compartido: '#fbbf24',
-  na:         '#cbd5e1',
-};
+// ── Component ──────────────────────────────────────────────────────────────
 
 export default function ResponsibilityMatrixPage() {
-  const [domainFilter, setDomainFilter] = useState<DomainKey | 'all'>('all');
-  const [respFilter, setRespFilter]     = useState<Responsibility | 'all'>('all');
+  const [catFilter,    setCatFilter]    = useState<string>('all');
+  const [domainFilter, setDomainFilter] = useState<QuestionDomain | 'all'>('all');
+  const [respFilter,   setRespFilter]   = useState<QuestionResponsibility | 'all'>('all');
 
-  const { overrides, setResponsibility, resetAll, getResponsibility } = useResponsibilityMatrixStore();
+  const { categories } = useCategoryStore();
+  const { customResponsibility, setCustomResponsibility } = useQuestionnaireStore();
 
-  const filteredControls = useMemo(() => {
-    return RESPONSIBILITY_MATRIX.filter(entry => {
-      if (domainFilter !== 'all' && getDomain(entry.id) !== domainFilter) return false;
-      if (respFilter !== 'all') {
-        const anyMatch = CATEGORY_KEYS.some(cat => getResponsibility(entry.id, cat) === respFilter);
-        if (!anyMatch) return false;
-      }
-      return true;
-    });
-  }, [domainFilter, respFilter, overrides]);
-
-  // Stats across all controls (unfiltered)
-  const stats = useMemo(() => {
-    const counts: Record<Responsibility, number> = { cliente: 0, proveedor: 0, compartido: 0, na: 0 };
-    RESPONSIBILITY_MATRIX.forEach(entry =>
-      CATEGORY_KEYS.forEach(cat => counts[getResponsibility(entry.id, cat)]++)
+  // Build all rows (all categories, all questions)
+  const allRows = useMemo<MatrixRow[]>(() => {
+    return categories.flatMap(cat =>
+      (CATEGORY_QUESTIONNAIRES[cat.id] ?? []).map(q => ({
+        categoryId:    cat.id,
+        categoryName:  cat.name,
+        question:      q,
+        effectiveResp: customResponsibility[cat.id]?.[q.id] ?? q.responsibility,
+      }))
     );
-    return counts;
-  }, [overrides]);
+  }, [categories, customResponsibility]);
 
-  const totalOverrides = Object.values(overrides).reduce(
-    (n, obj) => n + Object.keys(obj ?? {}).length, 0
+  const filtered = useMemo(() => {
+    return allRows.filter(r =>
+      (catFilter    === 'all' || r.categoryId         === catFilter) &&
+      (domainFilter === 'all' || r.question.domain    === domainFilter) &&
+      (respFilter   === 'all' || r.effectiveResp      === respFilter)
+    );
+  }, [allRows, catFilter, domainFilter, respFilter]);
+
+  // Stats (unfiltered)
+  const stats = useMemo(() => {
+    const counts: Record<QuestionResponsibility, number> = { proveedor: 0, cliente: 0, ambos: 0 };
+    allRows.forEach(r => counts[r.effectiveResp]++);
+    return counts;
+  }, [allRows]);
+
+  // Count customized cells
+  const totalOverrides = useMemo(() =>
+    Object.values(customResponsibility).reduce((n, obj) => n + Object.keys(obj ?? {}).length, 0),
+    [customResponsibility]
   );
 
-  // Group filtered controls by domain
-  const domains = useMemo(() => {
-    const map = new Map<DomainKey, typeof RESPONSIBILITY_MATRIX>();
-    filteredControls.forEach(entry => {
-      const d = getDomain(entry.id);
-      if (!map.has(d)) map.set(d, []);
-      map.get(d)!.push(entry);
+  // Group filtered rows by category then domain
+  const grouped = useMemo(() => {
+    const map = new Map<string, Map<QuestionDomain, MatrixRow[]>>();
+    filtered.forEach(r => {
+      if (!map.has(r.categoryId)) map.set(r.categoryId, new Map());
+      const domMap = map.get(r.categoryId)!;
+      if (!domMap.has(r.question.domain)) domMap.set(r.question.domain, []);
+      domMap.get(r.question.domain)!.push(r);
     });
     return map;
-  }, [filteredControls]);
+  }, [filtered]);
+
+  const STAT_COLORS: Record<QuestionResponsibility, string> = {
+    proveedor: '#60a5fa',
+    ambos:     '#fbbf24',
+    cliente:   '#4ade80',
+  };
 
   return (
     <div className={s.page}>
 
       {/* ── Toolbar ── */}
       <div className={s.toolbar}>
-        <span className={s.toolbarTitle}>Matriz de Responsabilidades ISO 27001</span>
+        <span className={s.toolbarTitle}>Matriz de Responsabilidades</span>
+
+        <div className={s.filterGroup}>
+          <span className={s.filterLabel}>Categoría</span>
+          <select className={s.select} value={catFilter} onChange={e => setCatFilter(e.target.value)}>
+            <option value="all">Todas</option>
+            {categories.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
 
         <div className={s.filterGroup}>
           <span className={s.filterLabel}>Dominio</span>
-          <select className={s.select} value={domainFilter} onChange={e => setDomainFilter(e.target.value as DomainKey | 'all')}>
+          <select className={s.select} value={domainFilter} onChange={e => setDomainFilter(e.target.value as QuestionDomain | 'all')}>
             <option value="all">Todos</option>
-            {(Object.keys(DOMAIN_LABELS) as DomainKey[]).map(d => (
+            {DOMAIN_ORDER.map(d => (
               <option key={d} value={d}>{DOMAIN_LABELS[d]}</option>
             ))}
           </select>
@@ -222,31 +272,24 @@ export default function ResponsibilityMatrixPage() {
 
         <div className={s.filterGroup}>
           <span className={s.filterLabel}>Responsabilidad</span>
-          <select className={s.select} value={respFilter} onChange={e => setRespFilter(e.target.value as Responsibility | 'all')}>
+          <select className={s.select} value={respFilter} onChange={e => setRespFilter(e.target.value as QuestionResponsibility | 'all')}>
             <option value="all">Todas</option>
             {RESP_OPTIONS.map(r => (
-              <option key={r} value={r}>{RESPONSIBILITY_LABELS[r]}</option>
+              <option key={r} value={r}>{RESP_LABELS[r]}</option>
             ))}
           </select>
         </div>
 
         <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 4 }}>
-          {filteredControls.length} de {RESPONSIBILITY_MATRIX.length} controles
-          {totalOverrides > 0 && <> · <strong style={{ color: '#f59e0b' }}>{totalOverrides} modificados</strong></>}
+          {filtered.length} de {allRows.length} preguntas
+          {totalOverrides > 0 && (
+            <> · <strong style={{ color: '#f59e0b' }}>{totalOverrides} modificadas</strong></>
+          )}
         </span>
-
-        {totalOverrides > 0 && (
-          <button
-            className={s.resetBtn}
-            onClick={() => { if (confirm('¿Restaurar todos los valores por defecto?')) resetAll(); }}
-          >
-            Restaurar valores por defecto
-          </button>
-        )}
 
         <button
           className={s.exportBtn}
-          onClick={() => exportToExcel(getResponsibility)}
+          onClick={() => exportToExcel(filtered)}
         >
           ↓ Exportar Excel
         </button>
@@ -257,12 +300,12 @@ export default function ResponsibilityMatrixPage() {
         {RESP_OPTIONS.map(resp => (
           <div key={resp} className={s.stat}>
             <span className={s.statDot} style={{ background: STAT_COLORS[resp] }} />
-            <span>{RESPONSIBILITY_LABELS[resp]}:</span>
+            <span>{RESP_LABELS[resp]}:</span>
             <span className={s.statVal}>{stats[resp]}</span>
           </div>
         ))}
         <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 'auto' }}>
-          {RESPONSIBILITY_MATRIX.length} controles × {CATEGORY_KEYS.length} categorías = {RESPONSIBILITY_MATRIX.length * CATEGORY_KEYS.length} celdas
+          {allRows.length} preguntas · {categories.length} categorías
         </span>
       </div>
 
@@ -272,53 +315,76 @@ export default function ResponsibilityMatrixPage() {
           <thead className={s.thead}>
             <tr>
               <th className={s.thId}>ID</th>
-              <th className={s.thControl}>Control</th>
-              {CATEGORY_KEYS.map(cat => (
-                <th key={cat} className={s.thCat} title={CATEGORY_LABELS[cat].full}>
-                  <span className={s.thCatShort}>{CATEGORY_LABELS[cat].short}</span>
-                  <span className={s.thCatFull}>{CATEGORY_LABELS[cat].full}</span>
-                </th>
-              ))}
+              <th className={s.thControl}>Pregunta</th>
+              <th className={s.thDomain}>Dominio</th>
+              <th className={s.thResp}>Responsabilidad</th>
+              <th className={s.thRisk}>Amenazas ref.</th>
             </tr>
           </thead>
           <tbody>
-            {Array.from(domains.entries()).map(([domain, entries]) => (
-              <>
-                <tr key={`domain-${domain}`} className={s.domainRow}>
-                  <td colSpan={2 + CATEGORY_KEYS.length}>{DOMAIN_LABELS[domain]}</td>
-                </tr>
-                {entries.map(entry => {
-                  const isModified = !!overrides[entry.id] && Object.keys(overrides[entry.id]).length > 0;
-                  return (
-                    <tr key={entry.id} className={s.tr}>
-                      <td className={s.tdId}>{entry.id}</td>
-                      <td className={s.tdControl}>{entry.control}</td>
-                      {CATEGORY_KEYS.map(cat => {
-                        const val = getResponsibility(entry.id, cat);
-                        const cellModified = overrides[entry.id]?.[cat] !== undefined;
-                        return (
-                          <td key={cat} className={s.tdCell}>
-                            <select
-                              className={[
-                                s.respSelect,
-                                s[`resp_${val}`],
-                                cellModified ? s.modified : '',
-                              ].join(' ')}
-                              value={val}
-                              onChange={e => setResponsibility(entry.id, cat, e.target.value as Responsibility)}
-                            >
-                              {RESP_OPTIONS.map(opt => (
-                                <option key={opt} value={opt}>{RESPONSIBILITY_LABELS[opt]}</option>
-                              ))}
-                            </select>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
-              </>
-            ))}
+            {Array.from(grouped.entries()).map(([catId, domMap]) => {
+              const catName = categories.find(c => c.id === catId)?.name ?? catId;
+              return (
+                <>
+                  {/* Category group header */}
+                  <tr key={`cat-${catId}`} className={s.categoryRow}>
+                    <td colSpan={5}>{catName}</td>
+                  </tr>
+
+                  {DOMAIN_ORDER.map(domain => {
+                    const rows = domMap.get(domain);
+                    if (!rows?.length) return null;
+                    return (
+                      <>
+                        {/* Domain sub-header */}
+                        <tr key={`dom-${catId}-${domain}`} className={s.domainRow}>
+                          <td colSpan={5}>{DOMAIN_LABELS[domain]}</td>
+                        </tr>
+
+                        {rows.map(r => {
+                          const q   = r.question;
+                          const cur = r.effectiveResp;
+                          const isOverridden = customResponsibility[catId]?.[q.id] !== undefined;
+                          return (
+                            <tr key={`${catId}-${q.id}`} className={s.tr}>
+                              <td className={s.tdId}>{q.id}</td>
+                              <td className={s.tdControl}>{q.text}</td>
+                              <td className={s.tdCell}>
+                                <span className={`${s.domainBadge} ${s[`dom_${domain}`]}`}>
+                                  {DOMAIN_LABELS[domain]}
+                                </span>
+                              </td>
+                              <td className={s.tdCell}>
+                                <select
+                                  className={[
+                                    s.respSelect,
+                                    s[`resp_${cur}`],
+                                    isOverridden ? s.modified : '',
+                                  ].join(' ')}
+                                  value={cur}
+                                  onChange={e =>
+                                    setCustomResponsibility(catId, q.id, e.target.value as QuestionResponsibility)
+                                  }
+                                >
+                                  {RESP_OPTIONS.map(opt => (
+                                    <option key={opt} value={opt}>{RESP_LABELS[opt]}</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className={s.tdRisk}>
+                                {q.riskRefs.map(rc => (
+                                  <span key={rc} className={s.riskTag}>{rc}</span>
+                                ))}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </>
+                    );
+                  })}
+                </>
+              );
+            })}
           </tbody>
         </table>
       </div>
