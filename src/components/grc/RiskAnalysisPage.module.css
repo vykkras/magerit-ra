@@ -1,0 +1,433 @@
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #f1f5f9;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  color: #0f172a;
+  overflow: hidden;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+/* ── Tabs ────────────────────────────────────────────────────────────────── */
+
+.tabs {
+  display: flex;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.tab {
+  padding: 14px 22px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #64748b;
+  border: none;
+  background: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.tab:hover { color: #1e293b; background: #f8fafc; }
+
+.tabActive {
+  color: #1a2e5c;
+  font-weight: 700;
+  border-bottom-color: #1a2e5c;
+  background: #fff;
+}
+
+/* ── Content area ────────────────────────────────────────────────────────── */
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Stats bar ───────────────────────────────────────────────────────────── */
+
+.statsBar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 20px;
+  flex-wrap: wrap;
+}
+
+.statChip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.statLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.statValue {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.statAccent { color: #059669; }
+
+.levelChips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.lvChip {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ── Section title ───────────────────────────────────────────────────────── */
+
+.sectionTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 10px;
+}
+
+/* ── Main row (matrix + breakdown) ──────────────────────────────────────── */
+
+.mainRow {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+/* ── 4×4 Risk Matrix ─────────────────────────────────────────────────────── */
+
+.matrixWrap {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px 20px;
+  flex-shrink: 0;
+}
+
+.matrixLegendRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #475569;
+  margin-bottom: 10px;
+}
+
+.legendDot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.matrix {
+  display: flex;
+  flex-direction: column;
+}
+
+.yAxisLabel {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+  padding-left: 72px;
+}
+
+.xAxisLabel {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+  padding-left: 72px;
+}
+
+.grid {
+  display: flex;
+  flex-direction: column;
+}
+
+.matrixRow {
+  display: flex;
+}
+
+.axisCell {
+  width: 72px;
+  font-size: 11px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  padding-right: 8px;
+  text-align: right;
+  justify-content: flex-end;
+}
+
+.xAxisCell {
+  width: 110px;
+  font-size: 11px;
+  color: #64748b;
+  text-align: center;
+  padding-top: 4px;
+}
+
+.cell {
+  width: 110px;
+  min-height: 68px;
+  border: 1px solid #e2e8f0;
+  padding: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-content: flex-start;
+}
+
+.dotInherent {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  background: #1e3a5f;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.dotResidual {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  background: #16a34a;
+  color: #fff;
+  white-space: nowrap;
+}
+
+/* ── Breakdown cards ─────────────────────────────────────────────────────── */
+
+.breakdownWrap {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px 20px;
+  flex: 1;
+}
+
+.breakdownGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.breakdownCard {
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.cardLevel {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.cardNums {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cardNumLabel {
+  font-size: 10.5px;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+
+.cardNum {
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.cardArrow {
+  font-size: 18px;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+/* ── Risk level colors ───────────────────────────────────────────────────── */
+
+.lv_critico { background: #fee2e2; color: #991b1b; }
+.lv_alto    { background: #fed7aa; color: #9a3412; }
+.lv_medio   { background: #fef9c3; color: #854d0e; }
+.lv_bajo    { background: #dcfce7; color: #166534; }
+
+.card_critico { background: #fee2e2; }
+.card_alto    { background: #fed7aa; }
+.card_medio   { background: #fef9c3; }
+.card_bajo    { background: #dcfce7; }
+
+.card_critico .cardLevel { color: #991b1b; }
+.card_alto    .cardLevel { color: #9a3412; }
+.card_medio   .cardLevel { color: #854d0e; }
+.card_bajo    .cardLevel { color: #166534; }
+
+/* ── Table ───────────────────────────────────────────────────────────────── */
+
+.tableWrap {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px 20px;
+  overflow-x: auto;
+}
+
+.table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 900px;
+  font-size: 13px;
+}
+
+.thead th {
+  background: #0f172a;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 10px 12px;
+  text-align: left;
+  border-right: 1px solid #1e293b;
+  white-space: nowrap;
+}
+
+.thCode { width: 70px; }
+.thName { min-width: 160px; }
+.thNum  { width: 60px; text-align: center !important; }
+.thScore { width: 110px; }
+.thSafeguards { min-width: 160px; }
+
+.tr {
+  border-bottom: 1px solid #e2e8f0;
+  transition: background 0.1s;
+}
+.tr:hover { background: #f8fafc; }
+
+.tdCode {
+  padding: 10px 12px;
+  font-weight: 700;
+  color: #475569;
+  font-size: 12px;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.tdName {
+  padding: 10px 12px;
+  color: #1e293b;
+  line-height: 1.4;
+  vertical-align: top;
+}
+
+.tdNum {
+  padding: 10px 12px;
+  text-align: center;
+  color: #475569;
+  font-weight: 600;
+  vertical-align: top;
+}
+
+.tdScore {
+  padding: 8px 12px;
+  vertical-align: top;
+}
+
+.tdSafeguards {
+  padding: 8px 12px;
+  vertical-align: top;
+}
+
+.badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.sgYes {
+  font-size: 11.5px;
+  color: #166534;
+  background: #f0fdf4;
+  border-left: 3px solid #22c55e;
+  padding: 2px 6px;
+  margin-bottom: 3px;
+  border-radius: 0 4px 4px 0;
+  line-height: 1.35;
+}
+
+.sgNo {
+  font-size: 11.5px;
+  color: #9a3412;
+  background: #fff7ed;
+  border-left: 3px solid #f97316;
+  padding: 2px 6px;
+  margin-bottom: 3px;
+  border-radius: 0 4px 4px 0;
+  line-height: 1.35;
+}
+
+.none {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.allGood {
+  font-size: 12px;
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.reductionPos  { color: #059669; font-weight: 700; }
+.reductionZero { color: #94a3b8; }

@@ -9,7 +9,7 @@ export interface ScenarioRow {
   residualImpact: 1|2|3|4|null;
 }
 
-const THREAT_PROB: Record<string, 1|2|3|4> = {
+export const THREAT_PROB: Record<string, 1|2|3|4> = {
   'I.5': 2, 'I.6': 1, 'I.8': 2,
   'E.1': 3, 'E.2': 2, 'E.3': 2, 'E.4': 2, 'E.7': 2, 'E.9': 1,
   'E.15': 2, 'E.18': 1, 'E.19': 2, 'E.20': 3, 'E.21': 2, 'E.23': 2,
@@ -19,7 +19,7 @@ const THREAT_PROB: Record<string, 1|2|3|4> = {
   'A.28': 2, 'A.29': 1, 'A.30': 2,
 };
 
-const THREAT_IMPACT: Record<string, 1|2|3|4> = {
+export const THREAT_IMPACT: Record<string, 1|2|3|4> = {
   'I.5': 2, 'I.6': 3, 'I.8': 3,
   'E.1': 2, 'E.2': 3, 'E.3': 2, 'E.4': 2, 'E.7': 2, 'E.9': 3,
   'E.15': 3, 'E.18': 4, 'E.19': 3, 'E.20': 3, 'E.21': 2, 'E.23': 2,
@@ -29,7 +29,7 @@ const THREAT_IMPACT: Record<string, 1|2|3|4> = {
   'A.28': 3, 'A.29': 4, 'A.30': 3,
 };
 
-const CAT_THREATS: Record<string, string[]> = {
+export const CAT_THREATS: Record<string, string[]> = {
   'low-impact-it':  ['I.5','E.1','E.2','E.4','E.20','E.21','E.23','E.25','A.11'],
   'saas':           ['I.5','I.8','E.1','E.2','E.4','E.19','E.20','E.24','A.5','A.6','A.11','A.14','A.19','A.24'],
   'saas-ai':        ['I.5','I.8','E.1','E.2','E.4','E.7','E.15','E.19','E.20','E.24','A.4','A.5','A.6','A.11','A.14','A.15','A.19','A.24','A.30'],

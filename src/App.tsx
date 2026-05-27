@@ -12,6 +12,7 @@ import CuestionarioPreliminar from './components/fase1/CuestionarioPreliminar';
 import CategoriesPage from './components/categories/CategoriesPage';
 import PendingPage from './components/common/PendingPage';
 import ResponsibilityMatrixPage from './components/tprm/ResponsibilityMatrixPage';
+import RiskAnalysisPage from './components/grc/RiskAnalysisPage';
 
 // ── Navigation model ──────────────────────────────────────────────────────────
 
@@ -58,7 +59,7 @@ const NAV: NavSection[] = [
     phase: 'Análisis y Evaluación',
     items: [
       { id: 'avanzado', num: 3, label: 'Cuestionario Avanzado',    pending: false },
-      { id: 'grc',                    num: 4, label: 'Tareas de Evaluación GRC',      pending: true  },
+      { id: 'grc',                    num: 4, label: 'Análisis de Riesgos',             pending: false },
       { id: 'matriz_responsabilidad', num: 5, label: 'Matriz de Responsabilidades',    pending: false },
       { id: 'tprm',                   num: 6, label: 'Cuestionario TPRM',              pending: true  },
       { id: 'informe',                num: 7, label: 'Informe de Evaluación',          pending: true  },
@@ -83,10 +84,6 @@ const PENDING_INFO: Partial<Record<PageId, { phase: string; description: string 
   categorizacion: {
     phase: 'Fase 1 · Registro y Categorización',
     description: 'Clasificación formal de la solución por parte del equipo GRC, confirmando tipología e impacto en la organización. Determinada automáticamente a partir del Cuestionario Preliminar.',
-  },
-  grc: {
-    phase: 'Fase 2 · Análisis y Evaluación',
-    description: 'Tareas de Gobernanza, Riesgos y Cumplimiento asignadas al equipo de seguridad para la evaluación profunda de la solución ICT, incluyendo revisión documental y análisis de controles.',
   },
   tprm: {
     phase: 'Fase 2 · Análisis y Evaluación',
@@ -244,6 +241,7 @@ export default function App() {
       case 'solicitud':   return <InfoGeneral />;
       case 'preliminar':  return <CuestionarioPreliminar />;
       case 'matriz_responsabilidad': return <ResponsibilityMatrixPage />;
+      case 'grc': return <RiskAnalysisPage />;
       case 'avanzado':
         if (esHerramientaIA === true) {
           return (
