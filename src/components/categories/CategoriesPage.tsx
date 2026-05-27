@@ -6,7 +6,7 @@ import { useQuestionnaireStore, type Answer, type Criticality, type ExtraQuestio
 import { useRiskScenarioStore } from '../../store/riskScenarioStore';
 import { MAGERIT_THREATS } from '../../data/threats.data';
 import { CATALOG_BY_CODE } from '../../data/safeguards.data';
-import { CATEGORY_QUESTIONNAIRES, type Question } from '../../data/questionnaires.data';
+import { CATEGORY_QUESTIONNAIRES, DOMAIN_LABELS, type Question } from '../../data/questionnaires.data';
 import type { Category } from '../../store/categoryStore';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -453,30 +453,34 @@ async function downloadExcel(
   const ws = wb.addWorksheet(category.name.replace(/[\\/*?:[\]]/g, '-').slice(0, 31));
 
   ws.columns = [
-    { width: 56 },
-    { width: 16 },
+    { width: 50 },
+    { width: 14 },
+    { width: 14 },
     { width: 14 },
     { width: 20 },
     { width: 36 },
   ];
 
-  const RESP_FILLS: Record<string, string> = { proveedor: 'FFDBEAFE', cliente: 'FFD1FAE5', ambos: 'FFFEF9C3' };
-  const RESP_FONTS: Record<string, string> = { proveedor: 'FF1E40AF', cliente: 'FF166534', ambos: 'FF854D0E' };
+  const RESP_FILLS: Record<string, string>  = { proveedor: 'FFDBEAFE', cliente: 'FFD1FAE5', ambos: 'FFFEF9C3' };
+  const RESP_FONTS: Record<string, string>  = { proveedor: 'FF1E40AF', cliente: 'FF166534', ambos: 'FF854D0E' };
   const RESP_LABELS: Record<string, string> = { proveedor: 'Proveedor', cliente: 'Cliente', ambos: 'Ambos' };
+  const DOM_FILLS: Record<string, string>   = { organizativo: 'FFF3E8FF', personas: 'FFFCE7F3', fisico: 'FFFFEDD5', tecnologico: 'FFE0F2FE' };
+  const DOM_FONTS: Record<string, string>   = { organizativo: 'FF6B21A8', personas: 'FF9D174D', fisico: 'FF9A3412', tecnologico: 'FF0C4A6E' };
+  const DOM_LABELS: Record<string, string>  = { organizativo: 'Organizativo', personas: 'Personas', fisico: 'Físico', tecnologico: 'Tecnológico' };
 
   const t = ws.addRow(['CUESTIONARIO — ' + category.name.toUpperCase()]);
   t.getCell(1).font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
   t.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A2E5C' } };
-  ws.mergeCells('A1:E1');
+  ws.mergeCells('A1:F1');
   t.height = 22;
 
   const dt = ws.addRow(['Fecha: ' + new Date().toLocaleDateString('es-ES')]);
   dt.getCell(1).font = { italic: true, size: 10, color: { argb: 'FF94A3B8' } };
-  ws.mergeCells('A2:E2');
+  ws.mergeCells('A2:F2');
 
   ws.addRow([]);
 
-  const hdr = ws.addRow(['Pregunta', 'Responsabilidad', 'Respuesta', 'Riesgos asociados', 'Salvaguardas asociadas']);
+  const hdr = ws.addRow(['Pregunta', 'Dominio', 'Responsabilidad', 'Respuesta', 'Riesgos asociados', 'Salvaguardas asociadas']);
   hdr.eachCell(cell => {
     cell.font      = { bold: true, size: 10, color: { argb: 'FF334155' } };
     cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
@@ -486,12 +490,12 @@ async function downloadExcel(
   hdr.height = 18;
 
   const critLabel = CRIT_OPTIONS.find(o => o.value === critValue)?.label ?? '';
-  const cr = ws.addRow(['¿Cuál es la criticidad de la solución evaluada?', '—', critLabel, '—', '—']);
+  const cr = ws.addRow(['¿Cuál es la criticidad de la solución evaluada?', '—', '—', critLabel, '—', '—']);
   cr.getCell(1).font      = { bold: true };
   cr.getCell(1).alignment = { wrapText: true, vertical: 'top' };
-  cr.getCell(3).alignment = { horizontal: 'center', vertical: 'top' };
+  cr.getCell(4).alignment = { horizontal: 'center', vertical: 'top' };
   cr.height = 28;
-  ws.getCell(`C${cr.number}`).dataValidation = {
+  ws.getCell(`D${cr.number}`).dataValidation = {
     type: 'list',
     allowBlank: false,
     formulae: ['"Baja,Media,Alta,Critica"'],
@@ -503,29 +507,34 @@ async function downloadExcel(
     const riskCodes   = customRR[q.id] ?? q.riskRefs;
     const sgCodes     = customSR[q.id] ?? q.safeguardRefs;
     const respKey     = q.responsibility ?? 'ambos';
+    const domKey      = q.domain ?? 'tecnologico';
     const row = ws.addRow([
       customQ[q.id] ?? q.text,
+      DOM_LABELS[domKey] ?? domKey,
       RESP_LABELS[respKey] ?? respKey,
       answerLabel,
       riskCodes.join(', '),
       sgCodes.map(sc => `${sc} – ${(CATALOG_BY_CODE[sc] as { name?: string })?.name ?? sc}`).join('\n'),
     ]);
     row.getCell(1).alignment = { wrapText: true, vertical: 'top' };
-    row.getCell(2).font      = { bold: true, size: 10, color: { argb: RESP_FONTS[respKey] ?? 'FF475569' } };
-    row.getCell(2).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: RESP_FILLS[respKey] ?? 'FFF1F5F9' } };
+    row.getCell(2).font      = { bold: true, size: 10, color: { argb: DOM_FONTS[domKey] ?? 'FF475569' } };
+    row.getCell(2).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: DOM_FILLS[domKey] ?? 'FFF1F5F9' } };
     row.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
-    row.getCell(3).alignment = { horizontal: 'center', vertical: 'top' };
-    row.getCell(4).font      = { name: 'Courier New', size: 9 };
-    row.getCell(5).font      = { size: 9 };
-    row.getCell(5).alignment = { wrapText: true, vertical: 'top' };
-    ws.getCell(`C${row.number}`).dataValidation = {
+    row.getCell(3).font      = { bold: true, size: 10, color: { argb: RESP_FONTS[respKey] ?? 'FF475569' } };
+    row.getCell(3).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: RESP_FILLS[respKey] ?? 'FFF1F5F9' } };
+    row.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
+    row.getCell(4).alignment = { horizontal: 'center', vertical: 'top' };
+    row.getCell(5).font      = { name: 'Courier New', size: 9 };
+    row.getCell(6).font      = { size: 9 };
+    row.getCell(6).alignment = { wrapText: true, vertical: 'top' };
+    ws.getCell(`D${row.number}`).dataValidation = {
       type: 'list',
       allowBlank: true,
       formulae: ['"Si,No,N/A"'],
     };
     const fill = answerLabel === 'Si' ? 'FFF0FDF4' : answerLabel === 'No' ? 'FFFEF2F2' : (i % 2 === 0 ? 'FFFFFFFF' : 'FFFAFAFA');
     row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
-    for (let c = 3; c <= 5; c++) row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+    for (let c = 4; c <= 6; c++) row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
     row.height = Math.max(28, q.safeguardRefs.length * 15);
   });
 
@@ -534,7 +543,7 @@ async function downloadExcel(
   const yesCount = questions.filter(q => categoryAnswers[q.id] === 'yes').length;
   const pct      = questions.length > 0 ? Math.round((yesCount / questions.length) * 100) : 0;
   const foot     = ws.addRow([`Respondidas: ${answered}/${questions.length}   ·   Si: ${yesCount}   ·   No: ${questions.filter(q => categoryAnswers[q.id] === 'no').length}   ·   Cumplimiento: ${pct}%`]);
-  ws.mergeCells(`A${foot.number}:E${foot.number}`);
+  ws.mergeCells(`A${foot.number}:F${foot.number}`);
   foot.getCell(1).font = { bold: true, size: 10 };
   foot.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
 
@@ -734,9 +743,10 @@ export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?
           <table className={s.table}>
             <thead>
               <tr>
-                <th style={{ width: '44%' }}>Pregunta</th>
-                <th style={{ width: '10%' }}>Responsabilidad</th>
-                <th style={{ width: '11%' }}>Respuesta</th>
+                <th style={{ width: '40%' }}>Pregunta</th>
+                <th style={{ width: '9%'  }}>Dominio</th>
+                <th style={{ width: '9%'  }}>Responsabilidad</th>
+                <th style={{ width: '10%' }}>Respuesta</th>
                 <th style={{ width: '13%' }}>Riesgo asociado</th>
                 <th>Salvaguardas asociadas</th>
               </tr>
@@ -761,6 +771,7 @@ export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?
                   </div>
                 </td>
                 <td style={{ color: '#cbd5e1', textAlign: 'center' }}>—</td>
+                <td style={{ color: '#cbd5e1', textAlign: 'center' }}>—</td>
                 <td style={{ color: '#cbd5e1' }}>—</td>
                 <td style={{ color: '#cbd5e1' }}>—</td>
               </tr>
@@ -779,6 +790,12 @@ export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?
                         questionId={q.id}
                         defaultText={q.text}
                       />
+                    </td>
+
+                    <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                      <span className={`${s.respBadge} ${s[`domain_${q.domain ?? 'tecnologico'}`]}`}>
+                        {DOMAIN_LABELS[q.domain ?? 'tecnologico']}
+                      </span>
                     </td>
 
                     <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
