@@ -453,25 +453,30 @@ async function downloadExcel(
   const ws = wb.addWorksheet(category.name.replace(/[\\/*?:[\]]/g, '-').slice(0, 31));
 
   ws.columns = [
-    { width: 60 },
+    { width: 56 },
+    { width: 16 },
     { width: 14 },
     { width: 20 },
     { width: 36 },
   ];
 
+  const RESP_FILLS: Record<string, string> = { proveedor: 'FFDBEAFE', cliente: 'FFD1FAE5', ambos: 'FFFEF9C3' };
+  const RESP_FONTS: Record<string, string> = { proveedor: 'FF1E40AF', cliente: 'FF166534', ambos: 'FF854D0E' };
+  const RESP_LABELS: Record<string, string> = { proveedor: 'Proveedor', cliente: 'Cliente', ambos: 'Ambos' };
+
   const t = ws.addRow(['CUESTIONARIO — ' + category.name.toUpperCase()]);
   t.getCell(1).font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
   t.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A2E5C' } };
-  ws.mergeCells('A1:D1');
+  ws.mergeCells('A1:E1');
   t.height = 22;
 
   const dt = ws.addRow(['Fecha: ' + new Date().toLocaleDateString('es-ES')]);
   dt.getCell(1).font = { italic: true, size: 10, color: { argb: 'FF94A3B8' } };
-  ws.mergeCells('A2:D2');
+  ws.mergeCells('A2:E2');
 
   ws.addRow([]);
 
-  const hdr = ws.addRow(['Pregunta', 'Respuesta', 'Riesgos asociados', 'Salvaguardas asociadas']);
+  const hdr = ws.addRow(['Pregunta', 'Responsabilidad', 'Respuesta', 'Riesgos asociados', 'Salvaguardas asociadas']);
   hdr.eachCell(cell => {
     cell.font      = { bold: true, size: 10, color: { argb: 'FF334155' } };
     cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
@@ -481,12 +486,12 @@ async function downloadExcel(
   hdr.height = 18;
 
   const critLabel = CRIT_OPTIONS.find(o => o.value === critValue)?.label ?? '';
-  const cr = ws.addRow(['¿Cuál es la criticidad de la solución evaluada?', critLabel, '—', '—']);
+  const cr = ws.addRow(['¿Cuál es la criticidad de la solución evaluada?', '—', critLabel, '—', '—']);
   cr.getCell(1).font      = { bold: true };
   cr.getCell(1).alignment = { wrapText: true, vertical: 'top' };
-  cr.getCell(2).alignment = { horizontal: 'center', vertical: 'top' };
+  cr.getCell(3).alignment = { horizontal: 'center', vertical: 'top' };
   cr.height = 28;
-  ws.getCell(`B${cr.number}`).dataValidation = {
+  ws.getCell(`C${cr.number}`).dataValidation = {
     type: 'list',
     allowBlank: false,
     formulae: ['"Baja,Media,Alta,Critica"'],
@@ -495,26 +500,32 @@ async function downloadExcel(
   questions.forEach((q, i) => {
     const raw         = categoryAnswers[q.id] ?? null;
     const answerLabel = raw === 'yes' ? 'Si' : raw === 'no' ? 'No' : raw === 'na' ? 'N/A' : '';
-    const riskCodes = customRR[q.id] ?? q.riskRefs;
-    const sgCodes   = customSR[q.id] ?? q.safeguardRefs;
+    const riskCodes   = customRR[q.id] ?? q.riskRefs;
+    const sgCodes     = customSR[q.id] ?? q.safeguardRefs;
+    const respKey     = q.responsibility ?? 'ambos';
     const row = ws.addRow([
       customQ[q.id] ?? q.text,
+      RESP_LABELS[respKey] ?? respKey,
       answerLabel,
       riskCodes.join(', '),
       sgCodes.map(sc => `${sc} – ${(CATALOG_BY_CODE[sc] as { name?: string })?.name ?? sc}`).join('\n'),
     ]);
     row.getCell(1).alignment = { wrapText: true, vertical: 'top' };
-    row.getCell(2).alignment = { horizontal: 'center', vertical: 'top' };
-    row.getCell(3).font      = { name: 'Courier New', size: 9 };
-    row.getCell(4).font      = { size: 9 };
-    row.getCell(4).alignment = { wrapText: true, vertical: 'top' };
-    ws.getCell(`B${row.number}`).dataValidation = {
+    row.getCell(2).font      = { bold: true, size: 10, color: { argb: RESP_FONTS[respKey] ?? 'FF475569' } };
+    row.getCell(2).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: RESP_FILLS[respKey] ?? 'FFF1F5F9' } };
+    row.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
+    row.getCell(3).alignment = { horizontal: 'center', vertical: 'top' };
+    row.getCell(4).font      = { name: 'Courier New', size: 9 };
+    row.getCell(5).font      = { size: 9 };
+    row.getCell(5).alignment = { wrapText: true, vertical: 'top' };
+    ws.getCell(`C${row.number}`).dataValidation = {
       type: 'list',
       allowBlank: true,
       formulae: ['"Si,No,N/A"'],
     };
     const fill = answerLabel === 'Si' ? 'FFF0FDF4' : answerLabel === 'No' ? 'FFFEF2F2' : (i % 2 === 0 ? 'FFFFFFFF' : 'FFFAFAFA');
-    for (let c = 1; c <= 4; c++) row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+    row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+    for (let c = 3; c <= 5; c++) row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
     row.height = Math.max(28, q.safeguardRefs.length * 15);
   });
 
@@ -523,7 +534,7 @@ async function downloadExcel(
   const yesCount = questions.filter(q => categoryAnswers[q.id] === 'yes').length;
   const pct      = questions.length > 0 ? Math.round((yesCount / questions.length) * 100) : 0;
   const foot     = ws.addRow([`Respondidas: ${answered}/${questions.length}   ·   Si: ${yesCount}   ·   No: ${questions.filter(q => categoryAnswers[q.id] === 'no').length}   ·   Cumplimiento: ${pct}%`]);
-  ws.mergeCells(`A${foot.number}:D${foot.number}`);
+  ws.mergeCells(`A${foot.number}:E${foot.number}`);
   foot.getCell(1).font = { bold: true, size: 10 };
   foot.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
 
@@ -723,9 +734,10 @@ export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?
           <table className={s.table}>
             <thead>
               <tr>
-                <th style={{ width: '50%' }}>Pregunta</th>
-                <th style={{ width: '13%' }}>Respuesta</th>
-                <th style={{ width: '14%' }}>Riesgo asociado</th>
+                <th style={{ width: '44%' }}>Pregunta</th>
+                <th style={{ width: '10%' }}>Responsabilidad</th>
+                <th style={{ width: '11%' }}>Respuesta</th>
+                <th style={{ width: '13%' }}>Riesgo asociado</th>
                 <th>Salvaguardas asociadas</th>
               </tr>
             </thead>
@@ -748,6 +760,7 @@ export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?
                     ))}
                   </div>
                 </td>
+                <td style={{ color: '#cbd5e1', textAlign: 'center' }}>—</td>
                 <td style={{ color: '#cbd5e1' }}>—</td>
                 <td style={{ color: '#cbd5e1' }}>—</td>
               </tr>
@@ -766,6 +779,12 @@ export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?
                         questionId={q.id}
                         defaultText={q.text}
                       />
+                    </td>
+
+                    <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                      <span className={`${s.respBadge} ${s[`resp_${q.responsibility ?? 'ambos'}`]}`}>
+                        {q.responsibility === 'proveedor' ? 'Proveedor' : q.responsibility === 'cliente' ? 'Cliente' : 'Ambos'}
+                      </span>
                     </td>
 
                     <td>
