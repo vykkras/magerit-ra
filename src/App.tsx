@@ -20,7 +20,6 @@ type PageId =
   | 'home'
   | 'solicitud'
   | 'preliminar'
-  | 'categorizacion'
   | 'avanzado'
   | 'grc'
   | 'matriz_responsabilidad'
@@ -50,8 +49,7 @@ const NAV: NavSection[] = [
     phaseNum: 'Fase 1',
     phase: 'Registro y Categorización',
     items: [
-      { id: 'preliminar',     num: 1, label: 'Cuestionario Preliminar', pending: false },
-      { id: 'categorizacion', num: 2, label: 'Categorización ICT',       pending: true  },
+      { id: 'preliminar', num: 1, label: 'Cuestionario Preliminar', pending: false },
     ],
   },
   {
@@ -81,10 +79,6 @@ const ALL_ITEMS: NavItem[] = [NAV_PRE, ...NAV.flatMap(sec => sec.items)];
 // ── Pending page info ─────────────────────────────────────────────────────────
 
 const PENDING_INFO: Partial<Record<PageId, { phase: string; description: string }>> = {
-  categorizacion: {
-    phase: 'Fase 1 · Registro y Categorización',
-    description: 'Clasificación formal de la solución por parte del equipo GRC, confirmando tipología e impacto en la organización. Determinada automáticamente a partir del Cuestionario Preliminar.',
-  },
   tprm: {
     phase: 'Fase 2 · Análisis y Evaluación',
     description: 'Evaluación de riesgos de terceros (Third-Party Risk Management): certificaciones del proveedor, incidentes previos, subcontratistas, gestión de vulnerabilidades y continuidad del negocio.',
@@ -110,10 +104,10 @@ const PENDING_INFO: Partial<Record<PageId, { phase: string; description: string 
 // ── Completion helpers ────────────────────────────────────────────────────────
 
 function useCompletionStatus() {
-  const { solicitante, proveedor, esSolucionICT, categoriaId, esHerramientaIA } = useSolicitudStore();
+  const { solicitante, proveedor, categoriaId } = useSolicitudStore();
   return {
-    solicitud:    !!(solicitante || proveedor) && esSolucionICT !== null,
-    preliminar:   !!(categoriaId && esHerramientaIA !== null),
+    solicitud:  !!(solicitante || proveedor),
+    preliminar: !!categoriaId,
   };
 }
 
@@ -140,7 +134,7 @@ export default function App() {
   const [page, setPage]               = useState<PageId>('home');
   const [editingId, setEditingId]     = useState<string | null>(null);
   const solicitud                     = useSolicitudStore();
-  const { categoriaId, esHerramientaIA } = solicitud;
+  const { categoriaId } = solicitud;
   const questionnaireStore            = useQuestionnaireStore();
   const { answers, criticality, customQuestions, customRiskRefs, customSafeguardRefs, customResponsibility, extraQuestions } = questionnaireStore;
   const scenarioStore                 = useRiskScenarioStore();
@@ -243,16 +237,6 @@ export default function App() {
       case 'matriz_responsabilidad': return <ResponsibilityMatrixPage />;
       case 'grc': return <RiskAnalysisPage />;
       case 'avanzado':
-        if (esHerramientaIA === true) {
-          return (
-            <PendingPage
-              num={3}
-              title="Cuestionario Avanzado"
-              phase="Fase 2 · Análisis y Evaluación"
-              description="Esta solución ha sido identificada como una Herramienta de Inteligencia Artificial y sigue el proceso de evaluación específico NS.05.07, gestionado directamente por el equipo GRC. El cuestionario avanzado estándar no aplica."
-            />
-          );
-        }
         return <CategoriesPage lockedCategoryId={categoriaId ?? undefined} />;
       default: {
         const info = PENDING_INFO[page];
@@ -332,16 +316,15 @@ export default function App() {
               </p>
 
               {section.items.map(item => {
-                const isDone   = item.id === 'preliminar' ? done.preliminar : false;
-                const isIaStep = item.id === 'avanzado' && esHerramientaIA === true;
+                const isDone = item.id === 'preliminar' ? done.preliminar : false;
                 return (
                   <button
                     key={item.id}
                     onClick={() => setPage(item.id)}
                     className={[
                       s.sidebarItem,
-                      page === item.id ? s.sidebarItemActive  : '',
-                      item.pending && !isIaStep ? s.sidebarItemPending : '',
+                      page === item.id ? s.sidebarItemActive : '',
+                      item.pending ? s.sidebarItemPending : '',
                     ].join(' ')}
                   >
                     {item.num !== undefined ? (
@@ -352,11 +335,9 @@ export default function App() {
                       <span className={s.sidebarNumPlaceholder} />
                     )}
                     <span className={s.sidebarLabel}>{item.label}</span>
-                    {isIaStep
-                      ? <span className={s.sidebarIaTag}>IA</span>
-                      : item.pending
-                        ? <span className={s.sidebarPendingTag}>Pendiente</span>
-                        : <StatusDot done={isDone} />
+                    {item.pending
+                      ? <span className={s.sidebarPendingTag}>Pendiente</span>
+                      : <StatusDot done={isDone} />
                     }
                   </button>
                 );

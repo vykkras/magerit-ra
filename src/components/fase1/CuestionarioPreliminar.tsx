@@ -4,7 +4,7 @@ import { CATEGORY_QUESTIONNAIRES } from '../../data/questionnaires.data';
 import s from './CuestionarioPreliminar.module.css';
 
 export default function CuestionarioPreliminar() {
-  const { categoriaId, esHerramientaIA, set } = useSolicitudStore();
+  const { categoriaId, set } = useSolicitudStore();
   const { categories } = useCategoryStore();
 
   return (
@@ -52,44 +52,9 @@ export default function CuestionarioPreliminar() {
         </div>
       </div>
 
-      {/* Decision diamond: ¿Es herramienta de IA? */}
-      <div className={s.diamond}>
-        <div className={s.diamondTop}>
-          <span className={s.diamondLabel}>Decisión</span>
-        </div>
-        <p className={s.diamondQuestion}>¿Es una herramienta de Inteligencia Artificial?</p>
-        <div className={s.yesNo}>
-          <button
-            className={`${s.btnYes} ${esHerramientaIA === true  ? s.btnYesActive : ''}`}
-            onClick={() => set({ esHerramientaIA: true })}
-          >
-            Sí
-          </button>
-          <button
-            className={`${s.btnNo}  ${esHerramientaIA === false ? s.btnNoActive  : ''}`}
-            onClick={() => set({ esHerramientaIA: false })}
-          >
-            No
-          </button>
-        </div>
-
-        {esHerramientaIA === true && (
-          <div className={s.policyNote}>
-            <div>
-              <p className={s.policyTitle}>Aplica política interna de IA</p>
-              <p className={s.policyText}>
-                Esta solución está sujeta a la política{' '}
-                <span className={s.policyCode}>NS.05.07</span> — Uso de Herramientas de Inteligencia Artificial dentro del Grupo.
-                El equipo GRC revisará el cumplimiento adicional requerido.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {categoriaId && esHerramientaIA !== null && (
-          <p className={s.hint}>✓ Continúa en el Cuestionario Avanzado (3) para la evaluación de riesgos</p>
-        )}
-      </div>
+      {categoriaId && (
+        <p className={s.hint}>✓ Continúa en el Cuestionario Avanzado (3) para la evaluación de riesgos</p>
+      )}
 
     </div>
   );

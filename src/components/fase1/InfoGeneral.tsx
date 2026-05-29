@@ -2,7 +2,7 @@ import { useSolicitudStore } from '../../store/solicitudStore';
 import s from './InfoGeneral.module.css';
 
 export default function InfoGeneral() {
-  const { solicitante, proveedor, referenciaPST, fechaSolicitud, descripcion, departamento, esSolucionICT, set } = useSolicitudStore();
+  const { solicitante, proveedor, referenciaPST, fechaSolicitud, descripcion, departamento, set } = useSolicitudStore();
 
   return (
     <div className={s.page}>
@@ -60,44 +60,6 @@ export default function InfoGeneral() {
           </div>
 
         </div>
-      </div>
-
-      {/* Decision diamond: ¿Es Solución ICT? */}
-      <div className={s.diamond}>
-        <div className={s.diamondTop}>
-          <span className={s.diamondLabel}>Decisión</span>
-        </div>
-        <p className={s.diamondQuestion}>¿Es una Solución Proveedor-Servicio ICT?</p>
-        <div className={s.yesNo}>
-          <button
-            className={`${s.btnYes} ${esSolucionICT === true  ? s.btnYesActive : ''}`}
-            onClick={() => set({ esSolucionICT: true })}
-          >
-            Sí
-          </button>
-          <button
-            className={`${s.btnNo}  ${esSolucionICT === false ? s.btnNoActive  : ''}`}
-            onClick={() => set({ esSolucionICT: false })}
-          >
-            No
-          </button>
-        </div>
-
-        {esSolucionICT === false && (
-          <div className={s.outOfScope}>
-            <div>
-              <p className={s.outOfScopeTitle}>Fuera del alcance del MAINS</p>
-              <p className={s.outOfScopeText}>
-                Esta solicitud no requiere evaluación por el equipo de Gestión de Riesgos, Ciberseguridad y Cumplimiento.
-                El proceso concluye aquí.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {esSolucionICT === true && (
-          <p className={s.hint}>✓ Continúa en el Cuestionario Preliminar (1) para seleccionar la categoría</p>
-        )}
       </div>
 
     </div>
