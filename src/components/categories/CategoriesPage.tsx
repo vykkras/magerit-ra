@@ -447,50 +447,69 @@ async function downloadExcel(
   critValue: Criticality,
   customQ: Record<string, string> = {},
 ) {
-  const COL_Q_WIDTH = 80;
-  const CHARS_PER_LINE = 76;
-  const PT_PER_LINE = 15;
+  const CHARS_PER_LINE = 70;
+  const PT_PER_LINE    = 20;
+  const ROW_MIN_H      = 36;
 
   function rowHeight(text: string) {
-    return Math.max(18, Math.ceil(text.length / CHARS_PER_LINE) * PT_PER_LINE);
+    return Math.max(ROW_MIN_H, Math.ceil(text.length / CHARS_PER_LINE) * PT_PER_LINE);
   }
+
+  const BORDER_ROW: Partial<ExcelJS.Borders> = {
+    top:    { style: 'thin', color: { argb: 'FFE2E8F0' } },
+    bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+    left:   { style: 'thin', color: { argb: 'FFE2E8F0' } },
+    right:  { style: 'thin', color: { argb: 'FFE2E8F0' } },
+  };
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'MAGERIT Risk';
   const ws = wb.addWorksheet(category.name.replace(/[\\/*?:[\]]/g, '-').slice(0, 31));
 
   ws.columns = [
-    { width: COL_Q_WIDTH },
-    { width: 14 },
+    { width: 90 },
+    { width: 18 },
   ];
 
+  // Title
   const t = ws.addRow(['CUESTIONARIO — ' + category.name.toUpperCase()]);
-  t.getCell(1).font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
-  t.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A2E5C' } };
+  t.getCell(1).font      = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+  t.getCell(1).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A2E5C' } };
+  t.getCell(1).alignment = { vertical: 'middle', indent: 1 };
   ws.mergeCells('A1:B1');
-  t.height = 22;
+  t.height = 34;
 
+  // Date
   const dt = ws.addRow(['Fecha: ' + new Date().toLocaleDateString('es-ES')]);
-  dt.getCell(1).font = { italic: true, size: 10, color: { argb: 'FF94A3B8' } };
+  dt.getCell(1).font      = { italic: true, size: 11, color: { argb: 'FF94A3B8' } };
+  dt.getCell(1).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A2E5C' } };
+  dt.getCell(1).alignment = { vertical: 'middle', indent: 1 };
   ws.mergeCells('A2:B2');
+  dt.height = 22;
 
-  ws.addRow([]);
+  // Spacer
+  ws.addRow([]).height = 6;
 
+  // Header
   const hdr = ws.addRow(['Pregunta', 'Respuesta']);
-  hdr.eachCell(cell => {
-    cell.font      = { bold: true, size: 10, color: { argb: 'FF334155' } };
-    cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-    cell.alignment = { vertical: 'middle' };
-    cell.border    = { bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } } };
+  hdr.eachCell((cell, col) => {
+    cell.font      = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
+    cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } };
+    cell.alignment = { vertical: 'middle', horizontal: col === 2 ? 'center' : 'left', indent: col === 1 ? 1 : 0 };
   });
-  hdr.height = 18;
+  hdr.height = 28;
 
+  // Criticality row
   const critText  = '¿Cuál es la criticidad de la solución evaluada?';
   const critLabel = CRIT_OPTIONS.find(o => o.value === critValue)?.label ?? '';
   const cr = ws.addRow([critText, critLabel]);
-  cr.getCell(1).font      = { bold: true };
-  cr.getCell(1).alignment = { wrapText: true, vertical: 'top' };
-  cr.getCell(2).alignment = { horizontal: 'center', vertical: 'top' };
+  cr.getCell(1).font      = { bold: true, size: 11 };
+  cr.getCell(1).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF8E1' } };
+  cr.getCell(2).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF8E1' } };
+  cr.getCell(1).alignment = { wrapText: true, vertical: 'middle', indent: 1 };
+  cr.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
+  cr.getCell(1).border    = BORDER_ROW;
+  cr.getCell(2).border    = BORDER_ROW;
   cr.height = rowHeight(critText);
   ws.getCell(`B${cr.number}`).dataValidation = {
     type: 'list',
@@ -498,21 +517,26 @@ async function downloadExcel(
     formulae: ['"Baja,Media,Alta,Critica"'],
   };
 
+  // Question rows
   questions.forEach((q, i) => {
     const raw         = categoryAnswers[q.id] ?? null;
     const answerLabel = raw === 'yes' ? 'Si' : raw === 'no' ? 'No' : raw === 'na' ? 'N/A' : '';
     const text        = customQ[q.id] ?? q.text;
+    const fill        = answerLabel === 'Si' ? 'FFF0FDF4' : answerLabel === 'No' ? 'FFFEF2F2' : (i % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC');
     const row = ws.addRow([text, answerLabel]);
-    row.getCell(1).alignment = { wrapText: true, vertical: 'top' };
-    row.getCell(2).alignment = { horizontal: 'center', vertical: 'top' };
+    row.getCell(1).font      = { size: 11 };
+    row.getCell(1).alignment = { wrapText: true, vertical: 'middle', indent: 1 };
+    row.getCell(2).font      = { size: 11, bold: !!answerLabel };
+    row.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
+    row.getCell(1).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+    row.getCell(2).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+    row.getCell(1).border    = BORDER_ROW;
+    row.getCell(2).border    = BORDER_ROW;
     ws.getCell(`B${row.number}`).dataValidation = {
       type: 'list',
       allowBlank: true,
       formulae: ['"Si,No,N/A"'],
     };
-    const fill = answerLabel === 'Si' ? 'FFF0FDF4' : answerLabel === 'No' ? 'FFFEF2F2' : (i % 2 === 0 ? 'FFFFFFFF' : 'FFFAFAFA');
-    row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
-    row.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
     row.height = rowHeight(text);
   });
 
