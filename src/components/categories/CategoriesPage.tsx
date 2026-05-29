@@ -516,15 +516,6 @@ async function downloadExcel(
     row.height = rowHeight(text);
   });
 
-  ws.addRow([]);
-  const answered = questions.filter(q => categoryAnswers[q.id] != null).length;
-  const yesCount = questions.filter(q => categoryAnswers[q.id] === 'yes').length;
-  const pct      = questions.length > 0 ? Math.round((yesCount / questions.length) * 100) : 0;
-  const foot     = ws.addRow([`Respondidas: ${answered}/${questions.length}   ·   Si: ${yesCount}   ·   No: ${questions.filter(q => categoryAnswers[q.id] === 'no').length}   ·   Cumplimiento: ${pct}%`]);
-  ws.mergeCells(`A${foot.number}:B${foot.number}`);
-  foot.getCell(1).font = { bold: true, size: 10 };
-  foot.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-
   const buf  = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url  = URL.createObjectURL(blob);
