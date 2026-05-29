@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useQuestionnaireStore } from '../../store/questionnaireStore';
 import { useSolicitudStore } from '../../store/solicitudStore';
 import { CATEGORY_QUESTIONNAIRES } from '../../data/questionnaires.data';
@@ -88,6 +88,7 @@ export default function RiskAnalysisPage() {
   const { answers, customResponsibility } = useQuestionnaireStore();
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const catId = categoriaId ?? '';
 
@@ -229,6 +230,11 @@ export default function RiskAnalysisPage() {
               {LEVEL_LABEL[lv]}: {stats.residual[lv]}
             </span>
           ))}
+        </div>
+        <div style={{ marginLeft: 'auto' }}>
+          <button className={s.helpBtn} onClick={() => setHelpOpen(true)} title="Ver metodología">
+            ? Ayuda
+          </button>
         </div>
       </div>
 
@@ -394,6 +400,109 @@ export default function RiskAnalysisPage() {
         </div>
       </div>
 
+      {/* ── Help modal ───────────────────────────────────────────────────── */}
+      {helpOpen && (
+        <div className={s.helpOverlay} onClick={() => setHelpOpen(false)}>
+          <div className={s.helpModal} onClick={e => e.stopPropagation()}>
+            <div className={s.helpHeader}>
+              <span className={s.helpTitle}>Metodología de Análisis de Riesgos</span>
+              <button className={s.helpClose} onClick={() => setHelpOpen(false)}>✕</button>
+            </div>
+            <div className={s.helpBody}>
+
+              <HelpSection title="Modelo de tres niveles">
+                <p>El análisis calcula tres posiciones de riesgo para cada amenaza, aplicando controles de forma escalonada:</p>
+                <ol>
+                  <li><strong>Riesgo Inherente</strong> — riesgo teórico sin ningún control; valores base de MAGERIT v3.</li>
+                  <li><strong>Riesgo Ajustado</strong> — riesgo tras aplicar los controles internos de la organización, ponderados por su nivel de madurez ISO 27001:2022.</li>
+                  <li><strong>Riesgo Residual</strong> — riesgo final tras aplicar adicionalmente las salvaguardas implementadas por el proveedor (respuestas "Sí" en el cuestionario).</li>
+                </ol>
+              </HelpSection>
+
+              <HelpSection title="Fórmulas">
+                <table className={s.helpTable}>
+                  <tbody>
+                    <tr><td className={s.helpTdLabel}>Riesgo Inherente</td><td className={s.helpTdFormula}>P × I</td></tr>
+                    <tr><td className={s.helpTdLabel}>Reducción por madurez</td><td className={s.helpTdFormula}>f(madurez media) → 0, 1 ó 2 puntos</td></tr>
+                    <tr><td className={s.helpTdLabel}>Impacto Ajustado</td><td className={s.helpTdFormula}>max(1, I − Reducción_madurez)</td></tr>
+                    <tr><td className={s.helpTdLabel}>Riesgo Ajustado</td><td className={s.helpTdFormula}>P × Impacto_Ajustado</td></tr>
+                    <tr><td className={s.helpTdLabel}>Impacto Residual</td><td className={s.helpTdFormula}>max(1, Impacto_Ajustado − Nº_Salvaguardas_Activas)</td></tr>
+                    <tr><td className={s.helpTdLabel}>Riesgo Residual</td><td className={s.helpTdFormula}>P × Impacto_Residual</td></tr>
+                    <tr><td className={s.helpTdLabel}>Reducción total (%)</td><td className={s.helpTdFormula}>(1 − Riesgo_Residual / Riesgo_Inherente) × 100</td></tr>
+                  </tbody>
+                </table>
+                <p className={s.helpNote}>El límite inferior de impacto es siempre 1 (min=1), garantizando que ningún riesgo se anule completamente por controles.</p>
+              </HelpSection>
+
+              <HelpSection title="Escala de Probabilidad (P · 1–4)">
+                <table className={s.helpTable}>
+                  <tbody>
+                    <tr><td className={s.helpTdVal}>1</td><td><strong>Muy rara</strong> — ocurrencia excepcional, improbable en el ciclo de vida del contrato.</td></tr>
+                    <tr><td className={s.helpTdVal}>2</td><td><strong>Poco frecuente</strong> — ocurre ocasionalmente, posible pero no habitual.</td></tr>
+                    <tr><td className={s.helpTdVal}>3</td><td><strong>Posible</strong> — ocurre con cierta regularidad en el sector.</td></tr>
+                    <tr><td className={s.helpTdVal}>4</td><td><strong>Frecuente</strong> — ocurre habitualmente o es una amenaza activa conocida.</td></tr>
+                  </tbody>
+                </table>
+              </HelpSection>
+
+              <HelpSection title="Escala de Impacto (I · 1–4)">
+                <table className={s.helpTable}>
+                  <tbody>
+                    <tr><td className={s.helpTdVal}>1</td><td><strong>Mínimo</strong> — impacto despreciable, sin afectación operativa relevante.</td></tr>
+                    <tr><td className={s.helpTdVal}>2</td><td><strong>Bajo</strong> — impacto menor gestionable con recursos ordinarios.</td></tr>
+                    <tr><td className={s.helpTdVal}>3</td><td><strong>Medio</strong> — impacto significativo con recuperación posible pero costosa.</td></tr>
+                    <tr><td className={s.helpTdVal}>4</td><td><strong>Alto</strong> — impacto crítico con consecuencias graves o duraderas.</td></tr>
+                  </tbody>
+                </table>
+              </HelpSection>
+
+              <HelpSection title="Niveles de Riesgo (P × I)">
+                <div className={s.helpLevels}>
+                  <div className={s.helpLvRow} style={{ background: '#fee2e2' }}><span style={{ color: '#991b1b', fontWeight: 700 }}>Crítico ≥ 9</span><span>Tratamiento inmediato obligatorio.</span></div>
+                  <div className={s.helpLvRow} style={{ background: '#fed7aa' }}><span style={{ color: '#9a3412', fontWeight: 700 }}>Alto ≥ 6</span><span>Plan de tratamiento prioritario.</span></div>
+                  <div className={s.helpLvRow} style={{ background: '#fef9c3' }}><span style={{ color: '#854d0e', fontWeight: 700 }}>Medio ≥ 4</span><span>Seguimiento y plan de mejora.</span></div>
+                  <div className={s.helpLvRow} style={{ background: '#dcfce7' }}><span style={{ color: '#166534', fontWeight: 700 }}>Bajo &lt; 4</span><span>Riesgo aceptable con monitorización periódica.</span></div>
+                </div>
+              </HelpSection>
+
+              <HelpSection title="Madurez de controles internos (ISO 27001:2022)">
+                <p>La madurez media de los controles que cubren una amenaza determina cuántos puntos de impacto se reducen <em>antes</em> de valorar las salvaguardas del proveedor:</p>
+                <table className={s.helpTable}>
+                  <tbody>
+                    <tr><td className={s.helpTdVal}>≥ 5 — Optimizado</td><td>−2 puntos de impacto</td></tr>
+                    <tr><td className={s.helpTdVal}>≥ 4 — Gestionado</td><td>−1 punto de impacto</td></tr>
+                    <tr><td className={s.helpTdVal}>1–3 — Inicial / Repetible / Definido</td><td>sin reducción</td></tr>
+                  </tbody>
+                </table>
+                <table className={s.helpTable} style={{ marginTop: 8 }}>
+                  <thead><tr><th>Nivel</th><th>Descripción</th></tr></thead>
+                  <tbody>
+                    <tr><td className={s.helpTdVal}>1 — Inicial</td><td>Sin procedimientos formales; actuación reactiva.</td></tr>
+                    <tr><td className={s.helpTdVal}>2 — Repetible</td><td>Procesos informales, dependientes de personas clave.</td></tr>
+                    <tr><td className={s.helpTdVal}>3 — Definido</td><td>Procesos documentados y estandarizados.</td></tr>
+                    <tr><td className={s.helpTdVal}>4 — Gestionado</td><td>Procesos medidos, controlados y con métricas.</td></tr>
+                    <tr><td className={s.helpTdVal}>5 — Optimizado</td><td>Mejora continua, automatización y revisión proactiva.</td></tr>
+                  </tbody>
+                </table>
+              </HelpSection>
+
+              <HelpSection title="Leyenda de la matriz">
+                <div className={s.helpMatrixLegend}>
+                  <span className={s.helpDotNavy} />
+                  <span><strong>Azul marino</strong> — posición ajustada por madurez interna (Riesgo Ajustado).</span>
+                </div>
+                <div className={s.helpMatrixLegend}>
+                  <span className={s.helpDotGreen} />
+                  <span><strong>Verde</strong> — posición residual tras salvaguardas del proveedor (Riesgo Residual). Solo aparece cuando la posición difiere de la ajustada.</span>
+                </div>
+                <p className={s.helpNote}>El color de fondo de cada celda indica el nivel de riesgo (Crítico / Alto / Medio / Bajo) basado en P × I de esa celda.</p>
+              </HelpSection>
+
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Tooltip ──────────────────────────────────────────────────────── */}
       {tooltip && (
         <div
@@ -407,6 +516,15 @@ export default function RiskAnalysisPage() {
           {tooltip.description && <div className={s.tooltipDesc}>{tooltip.description}</div>}
         </div>
       )}
+    </div>
+  );
+}
+
+function HelpSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className={s.helpSection}>
+      <h4 className={s.helpSectionTitle}>{title}</h4>
+      {children}
     </div>
   );
 }
