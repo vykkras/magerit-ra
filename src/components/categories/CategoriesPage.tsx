@@ -446,42 +446,37 @@ async function downloadExcel(
   categoryAnswers: Record<string, Answer>,
   critValue: Criticality,
   customQ: Record<string, string> = {},
-  customRR: Record<string, string[]> = {},
-  customSR: Record<string, string[]> = {},
 ) {
+  const COL_Q_WIDTH = 80;
+  const CHARS_PER_LINE = 76;
+  const PT_PER_LINE = 15;
+
+  function rowHeight(text: string) {
+    return Math.max(18, Math.ceil(text.length / CHARS_PER_LINE) * PT_PER_LINE);
+  }
+
   const wb = new ExcelJS.Workbook();
   wb.creator = 'MAGERIT Risk';
   const ws = wb.addWorksheet(category.name.replace(/[\\/*?:[\]]/g, '-').slice(0, 31));
 
   ws.columns = [
-    { width: 50 },
+    { width: COL_Q_WIDTH },
     { width: 14 },
-    { width: 14 },
-    { width: 14 },
-    { width: 20 },
-    { width: 36 },
   ];
-
-  const RESP_FILLS: Record<string, string>  = { proveedor: 'FFDBEAFE', cliente: 'FFD1FAE5', ambos: 'FFFEF9C3' };
-  const RESP_FONTS: Record<string, string>  = { proveedor: 'FF1E40AF', cliente: 'FF166534', ambos: 'FF854D0E' };
-  const RESP_LABELS: Record<string, string> = { proveedor: 'Proveedor', cliente: 'Cliente', ambos: 'Ambos' };
-  const DOM_FILLS: Record<string, string>   = { organizativo: 'FFF3E8FF', personas: 'FFFCE7F3', fisico: 'FFFFEDD5', tecnologico: 'FFE0F2FE' };
-  const DOM_FONTS: Record<string, string>   = { organizativo: 'FF6B21A8', personas: 'FF9D174D', fisico: 'FF9A3412', tecnologico: 'FF0C4A6E' };
-  const DOM_LABELS: Record<string, string>  = { organizativo: 'Organizativo', personas: 'Personas', fisico: 'Físico', tecnologico: 'Tecnológico' };
 
   const t = ws.addRow(['CUESTIONARIO — ' + category.name.toUpperCase()]);
   t.getCell(1).font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
   t.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A2E5C' } };
-  ws.mergeCells('A1:F1');
+  ws.mergeCells('A1:B1');
   t.height = 22;
 
   const dt = ws.addRow(['Fecha: ' + new Date().toLocaleDateString('es-ES')]);
   dt.getCell(1).font = { italic: true, size: 10, color: { argb: 'FF94A3B8' } };
-  ws.mergeCells('A2:F2');
+  ws.mergeCells('A2:B2');
 
   ws.addRow([]);
 
-  const hdr = ws.addRow(['Pregunta', 'Dominio', 'Responsabilidad', 'Respuesta', 'Riesgos asociados', 'Salvaguardas asociadas']);
+  const hdr = ws.addRow(['Pregunta', 'Respuesta']);
   hdr.eachCell(cell => {
     cell.font      = { bold: true, size: 10, color: { argb: 'FF334155' } };
     cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
@@ -490,13 +485,14 @@ async function downloadExcel(
   });
   hdr.height = 18;
 
+  const critText  = '¿Cuál es la criticidad de la solución evaluada?';
   const critLabel = CRIT_OPTIONS.find(o => o.value === critValue)?.label ?? '';
-  const cr = ws.addRow(['¿Cuál es la criticidad de la solución evaluada?', '—', '—', critLabel, '—', '—']);
+  const cr = ws.addRow([critText, critLabel]);
   cr.getCell(1).font      = { bold: true };
   cr.getCell(1).alignment = { wrapText: true, vertical: 'top' };
-  cr.getCell(4).alignment = { horizontal: 'center', vertical: 'top' };
-  cr.height = 28;
-  ws.getCell(`D${cr.number}`).dataValidation = {
+  cr.getCell(2).alignment = { horizontal: 'center', vertical: 'top' };
+  cr.height = rowHeight(critText);
+  ws.getCell(`B${cr.number}`).dataValidation = {
     type: 'list',
     allowBlank: false,
     formulae: ['"Baja,Media,Alta,Critica"'],
@@ -505,38 +501,19 @@ async function downloadExcel(
   questions.forEach((q, i) => {
     const raw         = categoryAnswers[q.id] ?? null;
     const answerLabel = raw === 'yes' ? 'Si' : raw === 'no' ? 'No' : raw === 'na' ? 'N/A' : '';
-    const riskCodes   = customRR[q.id] ?? q.riskRefs;
-    const sgCodes     = customSR[q.id] ?? q.safeguardRefs;
-    const respKey     = q.responsibility ?? 'ambos';
-    const domKey      = q.domain ?? 'tecnologico';
-    const row = ws.addRow([
-      customQ[q.id] ?? q.text,
-      DOM_LABELS[domKey] ?? domKey,
-      RESP_LABELS[respKey] ?? respKey,
-      answerLabel,
-      riskCodes.join(', '),
-      sgCodes.map(sc => `${sc} – ${(CATALOG_BY_CODE[sc] as { name?: string })?.name ?? sc}`).join('\n'),
-    ]);
+    const text        = customQ[q.id] ?? q.text;
+    const row = ws.addRow([text, answerLabel]);
     row.getCell(1).alignment = { wrapText: true, vertical: 'top' };
-    row.getCell(2).font      = { bold: true, size: 10, color: { argb: DOM_FONTS[domKey] ?? 'FF475569' } };
-    row.getCell(2).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: DOM_FILLS[domKey] ?? 'FFF1F5F9' } };
-    row.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
-    row.getCell(3).font      = { bold: true, size: 10, color: { argb: RESP_FONTS[respKey] ?? 'FF475569' } };
-    row.getCell(3).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: RESP_FILLS[respKey] ?? 'FFF1F5F9' } };
-    row.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
-    row.getCell(4).alignment = { horizontal: 'center', vertical: 'top' };
-    row.getCell(5).font      = { name: 'Courier New', size: 9 };
-    row.getCell(6).font      = { size: 9 };
-    row.getCell(6).alignment = { wrapText: true, vertical: 'top' };
-    ws.getCell(`D${row.number}`).dataValidation = {
+    row.getCell(2).alignment = { horizontal: 'center', vertical: 'top' };
+    ws.getCell(`B${row.number}`).dataValidation = {
       type: 'list',
       allowBlank: true,
       formulae: ['"Si,No,N/A"'],
     };
     const fill = answerLabel === 'Si' ? 'FFF0FDF4' : answerLabel === 'No' ? 'FFFEF2F2' : (i % 2 === 0 ? 'FFFFFFFF' : 'FFFAFAFA');
     row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
-    for (let c = 4; c <= 6; c++) row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
-    row.height = Math.max(28, q.safeguardRefs.length * 15);
+    row.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+    row.height = rowHeight(text);
   });
 
   ws.addRow([]);
@@ -544,7 +521,7 @@ async function downloadExcel(
   const yesCount = questions.filter(q => categoryAnswers[q.id] === 'yes').length;
   const pct      = questions.length > 0 ? Math.round((yesCount / questions.length) * 100) : 0;
   const foot     = ws.addRow([`Respondidas: ${answered}/${questions.length}   ·   Si: ${yesCount}   ·   No: ${questions.filter(q => categoryAnswers[q.id] === 'no').length}   ·   Cumplimiento: ${pct}%`]);
-  ws.mergeCells(`A${foot.number}:F${foot.number}`);
+  ws.mergeCells(`A${foot.number}:B${foot.number}`);
   foot.getCell(1).font = { bold: true, size: 10 };
   foot.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
 
@@ -728,7 +705,7 @@ export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?
               Ver BD
             </button>
             {view === 'questionnaire' && (
-              <button className={s.btnExcel} onClick={() => downloadExcel(category, questions, categoryAnswers, critValue, customQ, customRR, customSR)}>
+              <button className={s.btnExcel} onClick={() => downloadExcel(category, questions, categoryAnswers, critValue, customQ)}>
                 <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12v6m0 0l-3-3m3 3l3-3M12 3v9" />
                 </svg>
