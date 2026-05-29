@@ -13,6 +13,8 @@ import CategoriesPage from './components/categories/CategoriesPage';
 import PendingPage from './components/common/PendingPage';
 import ResponsibilityMatrixPage from './components/tprm/ResponsibilityMatrixPage';
 import RiskAnalysisPage from './components/grc/RiskAnalysisPage';
+import TprmResultsPage from './components/tprm/TprmResultsPage';
+import ResultadoPage from './components/grc/ResultadoPage';
 
 // ── Navigation model ──────────────────────────────────────────────────────────
 
@@ -59,15 +61,15 @@ const NAV: NavSection[] = [
       { id: 'avanzado', num: 3, label: 'Cuestionario Avanzado',    pending: false },
       { id: 'grc',                    num: 4, label: 'Análisis de Riesgos',             pending: false },
       { id: 'matriz_responsabilidad', num: 5, label: 'Matriz de Responsabilidades',    pending: false },
-      { id: 'tprm',                   num: 6, label: 'Cuestionario TPRM',              pending: true  },
-      { id: 'informe',                num: 7, label: 'Informe de Evaluación',          pending: true  },
+      { id: 'tprm',    num: 6, label: 'Resultados TPRM',       pending: false },
+      { id: 'informe', num: 7, label: 'Informe de Evaluación', pending: true  },
     ],
   },
   {
     phaseNum: 'Fase 3',
     phase: 'Resultados',
     items: [
-      { id: 'resultado',  label: 'Resultado OK / KO',              pending: true },
+      { id: 'resultado',  label: 'Resultado',  pending: false },
       { id: 'despliegue', num: 8, label: 'Solicitud de Despliegue',  pending: true },
       { id: 'inventario', num: 9, label: 'Inventario de Soluciones', pending: true },
     ],
@@ -166,23 +168,31 @@ export default function App() {
     const compliance = totalQ > 0 ? Math.round((totalYes / totalQ) * 100) : 0;
     const reduction  = totalInherent > 0 ? Math.round((1 - totalResidual / totalInherent) * 100) : 0;
 
-    const { set: _set, reset: _reset, ...solicitudData } = solicitud;
-
     return {
-      solicitante:     solicitud.solicitante,
-      proveedor:       solicitud.proveedor,
-      departamento:    solicitud.departamento,
-      referenciaPST:   solicitud.referenciaPST,
-      categoriaId:     solicitud.categoriaId,
-      esHerramientaIA: solicitud.esHerramientaIA,
+      solicitante:   solicitud.solicitante,
+      proveedor:     solicitud.proveedor,
+      departamento:  solicitud.departamento,
+      referenciaPST: solicitud.referenciaPST,
+      categoriaId:   solicitud.categoriaId,
       totalAnswered,
-      totalQuestions:  totalQ,
+      totalQuestions: totalQ,
       compliance,
-      totalInherent:   Math.round(totalInherent * 10) / 10,
-      totalResidual:   Math.round(totalResidual * 10) / 10,
+      totalInherent:  Math.round(totalInherent * 10) / 10,
+      totalResidual:  Math.round(totalResidual * 10) / 10,
       reduction,
       snapshot: {
-        solicitud:          { solicitante: solicitud.solicitante, proveedor: solicitud.proveedor, departamento: solicitud.departamento, referenciaPST: solicitud.referenciaPST, fechaSolicitud: solicitud.fechaSolicitud, descripcion: solicitud.descripcion, esSolucionICT: solicitud.esSolucionICT, categoriaId: solicitud.categoriaId, esHerramientaIA: solicitud.esHerramientaIA },
+        solicitud: {
+          solicitante:   solicitud.solicitante,
+          departamento:  solicitud.departamento,
+          proveedor:     solicitud.proveedor,
+          solucion:      solicitud.solucion,
+          tipoSolucion:  solicitud.tipoSolucion,
+          referenciaPST: solicitud.referenciaPST,
+          fechaSolicitud: solicitud.fechaSolicitud,
+          categoriaId:   solicitud.categoriaId,
+          tprmScore:     solicitud.tprmScore,
+          resultado:     solicitud.resultado,
+        },
         answers,
         criticality,
         customQuestions,
@@ -235,7 +245,9 @@ export default function App() {
       case 'solicitud':   return <InfoGeneral />;
       case 'preliminar':  return <CuestionarioPreliminar />;
       case 'matriz_responsabilidad': return <ResponsibilityMatrixPage />;
-      case 'grc': return <RiskAnalysisPage />;
+      case 'grc':       return <RiskAnalysisPage />;
+      case 'tprm':      return <TprmResultsPage />;
+      case 'resultado': return <ResultadoPage />;
       case 'avanzado':
         return <CategoriesPage lockedCategoryId={categoriaId ?? undefined} />;
       default: {

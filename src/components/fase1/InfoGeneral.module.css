@@ -106,3 +106,30 @@
   align-items: center;
   gap: 6px;
 }
+
+/* ── Tipo de solución toggle ── */
+.tipoToggle {
+  display: flex;
+  gap: 10px;
+}
+.tipoBtn {
+  padding: 9px 28px;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tipoBtn:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+  color: #334155;
+}
+.tipoBtnActive {
+  border-color: #1a2e5c;
+  background: #1a2e5c;
+  color: #fff;
+}

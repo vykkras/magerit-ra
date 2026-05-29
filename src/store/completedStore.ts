@@ -14,7 +14,6 @@ export interface CompletedEvaluation {
   departamento: string;
   referenciaPST: string;
   categoriaId: string | null;
-  esHerramientaIA: boolean | null;
   totalAnswered: number;
   totalQuestions: number;
   compliance: number;

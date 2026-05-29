@@ -1,0 +1,100 @@
+.page { display: flex; flex-direction: column; gap: 20px; max-width: 720px; }
+
+/* Header */
+.headerCard {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.headerIcon {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: #1a2e5c;
+  color: #fff;
+  font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.headerNum   { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; margin: 0 0 2px; }
+.headerTitle { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 2px; }
+.headerSub   { font-size: 13px; color: #64748b; margin: 0; }
+
+/* Summary */
+.summaryCard {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px 24px;
+}
+.summaryTitle { font-size: 12px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; margin: 0 0 14px; }
+.summaryGrid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
+.summaryItem  { display: flex; flex-direction: column; gap: 3px; }
+.summaryLabel { font-size: 11.5px; color: #94a3b8; font-weight: 500; }
+.summaryValue { font-size: 20px; font-weight: 700; color: #0f172a; }
+
+/* Card */
+.card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.cardTitle { font-size: 15px; font-weight: 700; color: #0f172a; margin: 0; }
+.cardSub   { font-size: 13px; color: #64748b; margin: -12px 0 0; }
+
+/* Options */
+.opciones { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+
+.opcionBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 24px 16px;
+  border-radius: 12px;
+  border: 2px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.opcionBtn:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+.opcionBtnActive {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+
+.opcionLabel {
+  font-size: 22px;
+  font-weight: 800;
+  color: #334155;
+  transition: color 0.15s;
+}
+.opcionSub {
+  font-size: 11.5px;
+  color: #94a3b8;
+  text-align: center;
+  line-height: 1.4;
+}
+.koBadge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #b91c1c;
+  background: #fee2e2;
+  border-radius: 4px;
+  padding: 2px 6px;
+  letter-spacing: .04em;
+}

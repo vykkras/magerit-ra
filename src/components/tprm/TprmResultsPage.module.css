@@ -1,0 +1,99 @@
+.page  { display: flex; flex-direction: column; gap: 20px; max-width: 720px; }
+
+/* Header */
+.headerCard {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.headerIcon {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: #1a2e5c;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.headerNum   { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; margin: 0 0 2px; }
+.headerTitle { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 2px; }
+.headerSub   { font-size: 13px; color: #64748b; margin: 0; }
+
+/* Card */
+.card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.cardTitle { font-size: 15px; font-weight: 700; color: #0f172a; margin: 0; }
+.cardSub   { font-size: 13px; color: #64748b; margin: -16px 0 0; }
+
+/* Score display */
+.scoreWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px 0 8px;
+}
+.scoreDisplay {
+  font-size: 72px;
+  font-weight: 800;
+  line-height: 1;
+  transition: color 0.2s;
+}
+.scoreLabel {
+  font-size: 14px;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+/* Slider */
+.sliderWrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sliderMin, .sliderMax {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  width: 24px;
+  flex-shrink: 0;
+}
+.sliderMax { text-align: right; }
+.slider {
+  flex: 1;
+  height: 6px;
+  accent-color: #1a2e5c;
+  cursor: pointer;
+}
+
+/* Direct input */
+.inputWrap { display: flex; flex-direction: column; gap: 6px; }
+.inputLabel { font-size: 12.5px; color: #64748b; font-weight: 500; }
+.input {
+  width: 120px;
+  padding: 8px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+  outline: none;
+}
+.input:focus { border-color: #1a2e5c; }
+
+/* Legend */
+.legend { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
+.legendItem { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; }
+.legendDot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
