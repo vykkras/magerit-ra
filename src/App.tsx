@@ -15,6 +15,7 @@ import ResponsibilityMatrixPage from './components/tprm/ResponsibilityMatrixPage
 import RiskAnalysisPage from './components/grc/RiskAnalysisPage';
 import TprmResultsPage from './components/tprm/TprmResultsPage';
 import ResultadoPage from './components/grc/ResultadoPage';
+import InformePage from './components/grc/InformePage';
 
 // ── Navigation model ──────────────────────────────────────────────────────────
 
@@ -62,7 +63,6 @@ const NAV: NavSection[] = [
       { id: 'grc',                    num: 4, label: 'Análisis de Riesgos',             pending: false },
       { id: 'matriz_responsabilidad', num: 5, label: 'Matriz de Responsabilidades',    pending: false },
       { id: 'tprm',    num: 6, label: 'Resultados TPRM',       pending: false },
-      { id: 'informe', num: 7, label: 'Informe de Evaluación', pending: true  },
     ],
   },
   {
@@ -70,6 +70,7 @@ const NAV: NavSection[] = [
     phase: 'Resultados',
     items: [
       { id: 'resultado',  label: 'Resultado',  pending: false },
+      { id: 'informe', num: 7, label: 'Informe de Evaluación', pending: false },
       { id: 'despliegue', num: 8, label: 'Solicitud de Despliegue',  pending: true },
       { id: 'inventario', num: 9, label: 'Inventario de Soluciones', pending: true },
     ],
@@ -248,6 +249,7 @@ export default function App() {
       case 'grc':       return <RiskAnalysisPage />;
       case 'tprm':      return <TprmResultsPage />;
       case 'resultado': return <ResultadoPage />;
+      case 'informe':   return <InformePage />;
       case 'avanzado':
         return <CategoriesPage lockedCategoryId={categoriaId ?? undefined} />;
       default: {
@@ -269,7 +271,7 @@ export default function App() {
     <div className={s.shell}>
 
       {/* ── Header ── */}
-      <header className={s.header}>
+      <header className={`${s.header} no-print`}>
         <button className={s.headerBrand} onClick={() => setPage('home')}>
           <img src="/logo.png" alt="Capgemini" className={s.headerLogo} />
           <div>
@@ -303,7 +305,7 @@ export default function App() {
       <div className={s.body}>
 
         {/* ── Sidebar (hidden on home) ── */}
-        {page === 'home' ? null : <nav className={s.sidebar}>
+        {page === 'home' ? null : <nav className={`${s.sidebar} no-print`}>
 
           {/* Pre-phase item: Información General */}
           <div className={s.sidebarSection}>
