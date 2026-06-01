@@ -1,376 +1,174 @@
-import React, { useRef, useState } from 'react';
-import { useSolicitudStore } from '../../store/solicitudStore';
+import { useMemo } from 'react';
+import { useManualRiskStore } from '../../store/manualRiskStore';
 import {
-  useRiskAnalysis,
-  matColor,
-  heatBg,
-  LEVEL_LABEL,
-  PROB_LABELS,
-  IMP_LABELS,
-  type RiskRow,
-  type RiskLevel,
-} from '../../hooks/useRiskAnalysis';
+  computeRiskSummary,
+  PROB_LABELS, IMP_LABELS,
+  ZONE_LABEL, ZONE_ORDER, ZONE_BG, ZONE_COLOR, zoneFromPI,
+  type ZoneLevel,
+} from '../../data/riskScale';
 import s from './RiskAnalysisPage.module.css';
 
-// ── Tooltip ────────────────────────────────────────────────────────────────
-
-interface TooltipState {
-  code: string; name: string; description: string; x: number; y: number;
-}
-
-// ── Component ──────────────────────────────────────────────────────────────
-
 export default function RiskAnalysisPage() {
-  const { categoriaId } = useSolicitudStore();
-  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
-  const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [helpOpen, setHelpOpen] = useState(false);
-
-  const catId = categoriaId ?? '';
-  const { rows, stats, matrix } = useRiskAnalysis();
-
-  function showTooltip(r: RiskRow, e: React.MouseEvent) {
-    if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
-    setTooltip({ code: r.code, name: r.name, description: r.description, x: e.clientX, y: e.clientY });
-  }
-  function hideTooltip() {
-    tooltipTimer.current = setTimeout(() => setTooltip(null), 120);
-  }
-
-  if (!catId) {
-    return <div className={s.empty}>Completa primero el cuestionario para ver el análisis de riesgos.</div>;
-  }
+  const { risks, addRisk, updateRisk, removeRisk } = useManualRiskStore();
+  const summary = useMemo(() => computeRiskSummary(risks), [risks]);
 
   return (
     <div className={s.page}>
 
-      {/* ── Stats bar ──────────────────────────────────────────────────── */}
-      <div className={s.statsBar}>
-        <StatChip label="Amenazas" value={String(stats.total)} />
-        <div className={s.divider} />
-        <StatChip label="Riesgo inherente medio" value={String(stats.avgInh)} />
-        <StatChip label="Riesgo residual medio"  value={String(stats.avgRes)} />
-        <StatChip label="Reducción total"         value={`${stats.reduction}%`} accent />
-        <div className={s.divider} />
-        <StatChip label="Madurez media controles" value={`${stats.avgMat}/5`} matColor={matColor(stats.avgMat)} />
-        <div className={s.divider} />
-        <div className={s.levelChips}>
-          {(['critico','alto','medio','bajo'] as RiskLevel[]).map(lv => (
-            <span key={lv} className={`${s.lvChip} ${s[`lv_${lv}`]}`}>
-              {LEVEL_LABEL[lv]}: {stats.residual[lv]}
-            </span>
-          ))}
-        </div>
-        <div style={{ marginLeft: 'auto' }}>
-          <button className={s.helpBtn} onClick={() => setHelpOpen(true)} title="Ver metodología">
-            ? Ayuda
-          </button>
+      {/* Header */}
+      <div className={s.headerCard}>
+        <div className={s.headerIcon}>4</div>
+        <div>
+          <p className={s.headerNum}>Fase 2 · Paso 4</p>
+          <p className={s.headerTitle}>Análisis de Riesgos</p>
+          <p className={s.headerSub}>Introduce manualmente los riesgos residuales obtenidos en GlobalSuite. La zona de riesgo se calcula automáticamente (Probabilidad × Impacto).</p>
         </div>
       </div>
 
-      <div className={s.content}>
-        <div className={s.mainRow}>
-
-          {/* ── 4×4 matrix ─────────────────────────────────────────────── */}
-          <div className={s.matrixWrap}>
-            <h3 className={s.sectionTitle}>Matriz de Riesgo</h3>
-            <div className={s.matrixLegendRow}>
-              <span className={s.legendDot} style={{ background: '#1e3a5f' }} /><span>Ajustado por madurez</span>
-              <span className={s.legendDot} style={{ background: '#16a34a', marginLeft: 10 }} /><span>Residual (proveedor)</span>
-            </div>
-            <div className={s.grid}>
-              {[4,3,2,1].map(p => (
-                <div key={p} className={s.matrixRow}>
-                  <div className={s.axisCell}>{PROB_LABELS[p]}</div>
-                  {[1,2,3,4].map(i => {
-                    const cell = matrix[`${p}-${i}`] ?? { inherent: [], residual: [] };
-                    return (
-                      <div key={i} className={s.cell} style={{ background: heatBg(p, i) }}>
-                        {cell.inherent.map(r => (
-                          <span key={`i-${r.code}`} className={s.dotInherent}
-                            onMouseEnter={e => showTooltip(r, e)}
-                            onMouseMove={e => showTooltip(r, e)}
-                            onMouseLeave={hideTooltip}>
-                            {r.code}
-                          </span>
-                        ))}
-                        {cell.residual.map(r => (
-                          <span key={`r-${r.code}`} className={s.dotResidual}
-                            onMouseEnter={e => showTooltip(r, e)}
-                            onMouseMove={e => showTooltip(r, e)}
-                            onMouseLeave={hideTooltip}>
-                            {r.code}
-                          </span>
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-              <div className={s.matrixRow}>
-                <div className={s.axisCell} />
-                {[1,2,3,4].map(i => (
-                  <div key={i} className={s.xAxisCell}>{IMP_LABELS[i]}</div>
-                ))}
-              </div>
-            </div>
-            <div className={s.axisLabels}>
-              <span className={s.yAxisLabel}>↑ Probabilidad</span>
-              <span className={s.xAxisLabel}>Impacto →</span>
-            </div>
-          </div>
-
-          {/* ── Level breakdown ────────────────────────────────────────── */}
-          <div className={s.breakdownWrap}>
-            <h3 className={s.sectionTitle}>Distribución por Nivel</h3>
-            <div className={s.breakdownGrid}>
-              {(['critico','alto','medio','bajo'] as RiskLevel[]).map(lv => (
-                <div key={lv} className={`${s.breakdownCard} ${s[`card_${lv}`]}`}>
-                  <div className={s.cardLevel}>{LEVEL_LABEL[lv]}</div>
-                  <div className={s.cardNums}>
-                    <div>
-                      <div className={s.cardNumLabel}>Inherente</div>
-                      <div className={s.cardNum}>{stats.inherent[lv]}</div>
-                    </div>
-                    <div className={s.cardArrow}>→</div>
-                    <div>
-                      <div className={s.cardNumLabel}>Residual</div>
-                      <div className={s.cardNum}>{stats.residual[lv]}</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* Editor */}
+      <div className={s.card}>
+        <div className={s.cardHead}>
+          <p className={s.cardTitle}>Matriz de riesgos residuales</p>
+          <button className={s.addBtn} onClick={addRisk}>+ Añadir riesgo</button>
         </div>
 
-        {/* ── Threat table ───────────────────────────────────────────────── */}
-        <div className={s.tableWrap}>
-          <h3 className={s.sectionTitle}>Detalle por Amenaza</h3>
+        {risks.length === 0 ? (
+          <div className={s.empty}>
+            No hay riesgos. Pulsa <strong>“Añadir riesgo”</strong> para introducir las filas de la matriz.
+          </div>
+        ) : (
           <table className={s.table}>
-            <thead className={s.thead}>
+            <thead>
               <tr>
-                <th className={s.thCode}>Amenaza</th>
-                <th className={s.thName}>Descripción</th>
-                <th className={s.thNum}>P</th>
-                <th className={s.thNum}>Imp. Inh.</th>
-                <th className={s.thScore}>Riesgo Inh.</th>
-                <th className={s.thMat}>Madurez Int.</th>
-                <th className={s.thNum}>Imp. Adj.</th>
-                <th className={s.thScore}>Riesgo Adj.</th>
-                <th className={s.thSafeguards}>Salv. activas</th>
-                <th className={s.thSafeguards}>Salv. pendientes</th>
-                <th className={s.thNum}>Imp. Res.</th>
-                <th className={s.thScore}>Riesgo Res.</th>
-                <th className={s.thNum}>Reducción</th>
+                <th className={s.thNum}>#</th>
+                <th>Activo</th>
+                <th>Amenaza</th>
+                <th className={s.thSel}>Probabilidad residual</th>
+                <th className={s.thSel}>Impacto residual</th>
+                <th className={s.thZone}>Zona de Riesgo Residual</th>
+                <th className={s.thDel} />
               </tr>
             </thead>
             <tbody>
-              {rows.map(r => {
-                const mc = matColor(r.avgMat);
+              {risks.map((r, i) => {
+                const zone = zoneFromPI(r.probabilidad, r.impacto);
                 return (
-                  <tr key={r.code} className={s.tr}>
-                    <td className={s.tdCode}>{r.code}</td>
-                    <td className={s.tdName}>{r.name}</td>
-                    <td className={s.tdNum}>{r.prob}</td>
-                    <td className={s.tdNum}>{r.inherentImpact}</td>
-                    <td className={s.tdScore}>
-                      <span className={`${s.badge} ${s[`lv_${r.inherentLevel}`]}`}>
-                        {r.inherentScore} · {LEVEL_LABEL[r.inherentLevel]}
+                  <tr key={r.id}>
+                    <td className={s.tdNum}>{i + 1}</td>
+                    <td>
+                      <input
+                        className={s.input}
+                        value={r.activo}
+                        placeholder="Activo…"
+                        onChange={e => updateRisk(r.id, { activo: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className={s.input}
+                        value={r.amenaza}
+                        placeholder="Amenaza…"
+                        onChange={e => updateRisk(r.id, { amenaza: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        className={s.select}
+                        value={r.probabilidad}
+                        onChange={e => updateRisk(r.id, { probabilidad: Number(e.target.value) })}
+                      >
+                        {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v} · {PROB_LABELS[v]}</option>)}
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        className={s.select}
+                        value={r.impacto}
+                        onChange={e => updateRisk(r.id, { impacto: Number(e.target.value) })}
+                      >
+                        {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v} · {IMP_LABELS[v]}</option>)}
+                      </select>
+                    </td>
+                    <td>
+                      <span className={s.zoneBadge} style={{ background: ZONE_BG[zone], color: ZONE_COLOR[zone] }}>
+                        {ZONE_LABEL[zone]}
                       </span>
                     </td>
-                    <td className={s.tdMat}>
-                      <span className={s.matBadge} style={{ background: mc.bg, color: mc.color }}>
-                        {r.avgMat}/5 — {r.matLabel}
-                      </span>
-                      {r.matReduction > 0 && (
-                        <span className={s.matRed}>↓{r.matReduction}</span>
-                      )}
-                    </td>
-                    <td className={s.tdNum}>{r.adjImpact}</td>
-                    <td className={s.tdScore}>
-                      <span className={`${s.badge} ${s[`lv_${r.adjLevel}`]}`}>
-                        {r.adjScore} · {LEVEL_LABEL[r.adjLevel]}
-                      </span>
-                    </td>
-                    <td className={s.tdSafeguards}>
-                      {r.implementedSafeguards.length === 0
-                        ? <span className={s.none}>—</span>
-                        : r.implementedSafeguards.map((sg, i) => (
-                            <div key={i} className={s.sgYes}>{sg}</div>
-                          ))
-                      }
-                    </td>
-                    <td className={s.tdSafeguards}>
-                      {r.missingSafeguards.length === 0
-                        ? <span className={r.covered ? s.allGood : s.none}>
-                            {r.covered ? 'Todo cubierto' : '—'}
-                          </span>
-                        : r.missingSafeguards.map((sg, i) => (
-                            <div key={i} className={s.sgNo}>{sg}</div>
-                          ))
-                      }
-                    </td>
-                    <td className={s.tdNum}>{r.residualImpact}</td>
-                    <td className={s.tdScore}>
-                      <span className={`${s.badge} ${s[`lv_${r.residualLevel}`]}`}>
-                        {r.residualScore} · {LEVEL_LABEL[r.residualLevel]}
-                      </span>
-                    </td>
-                    <td className={s.tdNum}>
-                      <span className={r.reduction > 0 ? s.reductionPos : s.reductionZero}>
-                        {r.reduction > 0 ? `↓ ${r.reduction}%` : '0%'}
-                      </span>
+                    <td className={s.tdDel}>
+                      <button className={s.delBtn} title="Eliminar" onClick={() => removeRisk(r.id)}>✕</button>
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-        </div>
+        )}
       </div>
 
-      {/* ── Help modal ───────────────────────────────────────────────────── */}
-      {helpOpen && (
-        <div className={s.helpOverlay} onClick={() => setHelpOpen(false)}>
-          <div className={s.helpModal} onClick={e => e.stopPropagation()}>
-            <div className={s.helpHeader}>
-              <span className={s.helpTitle}>Metodología de Análisis de Riesgos</span>
-              <button className={s.helpClose} onClick={() => setHelpOpen(false)}>✕</button>
-            </div>
-            <div className={s.helpBody}>
+      {/* Mapa de riesgos + distribución */}
+      {risks.length > 0 && (
+        <div className={s.card}>
+          <p className={s.cardTitle}>Mapa de Riesgos</p>
+          <p className={s.cardSub}>Distribución de los {summary.total} riesgos por probabilidad e impacto residual.</p>
 
-              <HelpSection title="Modelo de tres niveles">
-                <p>El análisis calcula tres posiciones de riesgo para cada amenaza, aplicando controles de forma escalonada:</p>
-                <ol>
-                  <li><strong>Riesgo Inherente</strong> — riesgo teórico sin ningún control; valores base de MAGERIT v3.</li>
-                  <li><strong>Riesgo Ajustado</strong> — riesgo tras aplicar los controles internos de la organización, ponderados por su nivel de madurez ISO 27001:2022.</li>
-                  <li><strong>Riesgo Residual</strong> — riesgo final tras aplicar adicionalmente las salvaguardas implementadas por el proveedor (respuestas "Sí" en el cuestionario).</li>
-                </ol>
-              </HelpSection>
+          <div className={s.mapRow}>
+            <RiskMap mapCounts={summary.mapCounts} total={summary.total} />
 
-              <HelpSection title="Fórmulas">
-                <table className={s.helpTable}>
-                  <tbody>
-                    <tr><td className={s.helpTdLabel}>Riesgo Inherente</td><td className={s.helpTdFormula}>P × I</td></tr>
-                    <tr><td className={s.helpTdLabel}>Reducción por madurez</td><td className={s.helpTdFormula}>f(madurez media) → 0, 1 ó 2 puntos</td></tr>
-                    <tr><td className={s.helpTdLabel}>Impacto Ajustado</td><td className={s.helpTdFormula}>max(1, I − Reducción_madurez)</td></tr>
-                    <tr><td className={s.helpTdLabel}>Riesgo Ajustado</td><td className={s.helpTdFormula}>P × Impacto_Ajustado</td></tr>
-                    <tr><td className={s.helpTdLabel}>Impacto Residual</td><td className={s.helpTdFormula}>max(1, Impacto_Ajustado − Nº_Salvaguardas_Activas)</td></tr>
-                    <tr><td className={s.helpTdLabel}>Riesgo Residual</td><td className={s.helpTdFormula}>P × Impacto_Residual</td></tr>
-                    <tr><td className={s.helpTdLabel}>Reducción total (%)</td><td className={s.helpTdFormula}>(1 − Riesgo_Residual / Riesgo_Inherente) × 100</td></tr>
-                  </tbody>
-                </table>
-                <p className={s.helpNote}>El límite inferior de impacto es siempre 1 (min=1), garantizando que ningún riesgo se anule completamente por controles.</p>
-              </HelpSection>
-
-              <HelpSection title="Escala de Probabilidad (P · 1–4)">
-                <table className={s.helpTable}>
-                  <tbody>
-                    <tr><td className={s.helpTdVal}>1</td><td><strong>Muy rara</strong> — ocurrencia excepcional, improbable en el ciclo de vida del contrato.</td></tr>
-                    <tr><td className={s.helpTdVal}>2</td><td><strong>Poco frecuente</strong> — ocurre ocasionalmente, posible pero no habitual.</td></tr>
-                    <tr><td className={s.helpTdVal}>3</td><td><strong>Posible</strong> — ocurre con cierta regularidad en el sector.</td></tr>
-                    <tr><td className={s.helpTdVal}>4</td><td><strong>Frecuente</strong> — ocurre habitualmente o es una amenaza activa conocida.</td></tr>
-                  </tbody>
-                </table>
-              </HelpSection>
-
-              <HelpSection title="Escala de Impacto (I · 1–4)">
-                <table className={s.helpTable}>
-                  <tbody>
-                    <tr><td className={s.helpTdVal}>1</td><td><strong>Mínimo</strong> — impacto despreciable, sin afectación operativa relevante.</td></tr>
-                    <tr><td className={s.helpTdVal}>2</td><td><strong>Bajo</strong> — impacto menor gestionable con recursos ordinarios.</td></tr>
-                    <tr><td className={s.helpTdVal}>3</td><td><strong>Medio</strong> — impacto significativo con recuperación posible pero costosa.</td></tr>
-                    <tr><td className={s.helpTdVal}>4</td><td><strong>Alto</strong> — impacto crítico con consecuencias graves o duraderas.</td></tr>
-                  </tbody>
-                </table>
-              </HelpSection>
-
-              <HelpSection title="Niveles de Riesgo (P × I)">
-                <div className={s.helpLevels}>
-                  <div className={s.helpLvRow} style={{ background: '#fee2e2' }}><span style={{ color: '#991b1b', fontWeight: 700 }}>Crítico ≥ 9</span><span>Tratamiento inmediato obligatorio.</span></div>
-                  <div className={s.helpLvRow} style={{ background: '#fed7aa' }}><span style={{ color: '#9a3412', fontWeight: 700 }}>Alto ≥ 6</span><span>Plan de tratamiento prioritario.</span></div>
-                  <div className={s.helpLvRow} style={{ background: '#fef9c3' }}><span style={{ color: '#854d0e', fontWeight: 700 }}>Medio ≥ 4</span><span>Seguimiento y plan de mejora.</span></div>
-                  <div className={s.helpLvRow} style={{ background: '#dcfce7' }}><span style={{ color: '#166534', fontWeight: 700 }}>Bajo &lt; 4</span><span>Riesgo aceptable con monitorización periódica.</span></div>
+            <div className={s.zoneDist}>
+              {ZONE_ORDER.map(z => (
+                <div key={z} className={s.zoneDistRow}>
+                  <span className={s.zoneDot} style={{ background: ZONE_BG[z], borderColor: ZONE_COLOR[z] }} />
+                  <span className={s.zoneDistLabel}>{ZONE_LABEL[z]}</span>
+                  <span className={s.zoneDistCount} style={{ color: ZONE_COLOR[z] }}>{summary.zoneCounts[z]}</span>
                 </div>
-              </HelpSection>
-
-              <HelpSection title="Madurez de controles internos (ISO 27001:2022)">
-                <p>La madurez media de los controles que cubren una amenaza determina cuántos puntos de impacto se reducen <em>antes</em> de valorar las salvaguardas del proveedor:</p>
-                <table className={s.helpTable}>
-                  <tbody>
-                    <tr><td className={s.helpTdVal}>≥ 5 — Optimizado</td><td>−2 puntos de impacto</td></tr>
-                    <tr><td className={s.helpTdVal}>≥ 4 — Gestionado</td><td>−1 punto de impacto</td></tr>
-                    <tr><td className={s.helpTdVal}>1–3 — Inicial / Repetible / Definido</td><td>sin reducción</td></tr>
-                  </tbody>
-                </table>
-                <table className={s.helpTable} style={{ marginTop: 8 }}>
-                  <thead><tr><th>Nivel</th><th>Descripción</th></tr></thead>
-                  <tbody>
-                    <tr><td className={s.helpTdVal}>1 — Inicial</td><td>Sin procedimientos formales; actuación reactiva.</td></tr>
-                    <tr><td className={s.helpTdVal}>2 — Repetible</td><td>Procesos informales, dependientes de personas clave.</td></tr>
-                    <tr><td className={s.helpTdVal}>3 — Definido</td><td>Procesos documentados y estandarizados.</td></tr>
-                    <tr><td className={s.helpTdVal}>4 — Gestionado</td><td>Procesos medidos, controlados y con métricas.</td></tr>
-                    <tr><td className={s.helpTdVal}>5 — Optimizado</td><td>Mejora continua, automatización y revisión proactiva.</td></tr>
-                  </tbody>
-                </table>
-              </HelpSection>
-
-              <HelpSection title="Leyenda de la matriz">
-                <div className={s.helpMatrixLegend}>
-                  <span className={s.helpDotNavy} />
-                  <span><strong>Azul marino</strong> — posición ajustada por madurez interna (Riesgo Ajustado).</span>
-                </div>
-                <div className={s.helpMatrixLegend}>
-                  <span className={s.helpDotGreen} />
-                  <span><strong>Verde</strong> — posición residual tras salvaguardas del proveedor (Riesgo Residual). Solo aparece cuando la posición difiere de la ajustada.</span>
-                </div>
-                <p className={s.helpNote}>El color de fondo de cada celda indica el nivel de riesgo (Crítico / Alto / Medio / Bajo) basado en P × I de esa celda.</p>
-              </HelpSection>
-
+              ))}
             </div>
           </div>
         </div>
       )}
-
-      {/* ── Tooltip ──────────────────────────────────────────────────────── */}
-      {tooltip && (
-        <div
-          className={s.tooltip}
-          style={{ left: tooltip.x + 14, top: tooltip.y - 10 }}
-          onMouseEnter={() => { if (tooltipTimer.current) clearTimeout(tooltipTimer.current); }}
-          onMouseLeave={hideTooltip}
-        >
-          <div className={s.tooltipCode}>{tooltip.code}</div>
-          <div className={s.tooltipName}>{tooltip.name}</div>
-          {tooltip.description && <div className={s.tooltipDesc}>{tooltip.description}</div>}
-        </div>
-      )}
     </div>
   );
 }
 
-function HelpSection({ title, children }: { title: string; children: React.ReactNode }) {
+function RiskMap({ mapCounts, total }: { mapCounts: number[][]; total: number }) {
   return (
-    <div className={s.helpSection}>
-      <h4 className={s.helpSectionTitle}>{title}</h4>
-      {children}
-    </div>
-  );
-}
-
-function StatChip({ label, value, accent, matColor: mc }: {
-  label: string; value: string; accent?: boolean; matColor?: { bg: string; color: string };
-}) {
-  return (
-    <div className={s.statChip}>
-      <span className={s.statLabel}>{label}</span>
-      <span
-        className={`${s.statValue} ${accent ? s.statAccent : ''}`}
-        style={mc ? { color: mc.color } : undefined}
-      >
-        {value}
-      </span>
-    </div>
+    <table className={s.mapTable}>
+      <thead>
+        <tr>
+          <th className={s.mapCorner}>Impacto ↓ / Prob. →</th>
+          {[1, 2, 3, 4, 5].map(p => <th key={p} className={s.mapAxis}>{PROB_LABELS[p]}</th>)}
+          <th className={s.mapTotalHead}>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {[5, 4, 3, 2, 1].map(imp => {
+          const counts = mapCounts[imp - 1];
+          const rowTotal = counts.reduce((a, b) => a + b, 0);
+          return (
+            <tr key={imp}>
+              <td className={s.mapAxis}>{IMP_LABELS[imp]}</td>
+              {[1, 2, 3, 4, 5].map(p => {
+                const zone: ZoneLevel = zoneFromPI(p, imp);
+                const c = counts[p - 1];
+                return (
+                  <td key={p} className={s.mapCell} style={{ background: ZONE_BG[zone] }}>
+                    {c > 0 ? c : ''}
+                  </td>
+                );
+              })}
+              <td className={s.mapTotal}>{rowTotal}</td>
+            </tr>
+          );
+        })}
+        <tr>
+          <td className={s.mapTotal}>Total</td>
+          {[1, 2, 3, 4, 5].map(p => {
+            const colTotal = [0, 1, 2, 3, 4].reduce((a, imp) => a + mapCounts[imp][p - 1], 0);
+            return <td key={p} className={s.mapTotal}>{colTotal}</td>;
+          })}
+          <td className={s.mapTotal}>{total}</td>
+        </tr>
+      </tbody>
+    </table>
   );
 }

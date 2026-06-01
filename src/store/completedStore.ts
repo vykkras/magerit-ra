@@ -4,6 +4,7 @@ import type { SolicitudState } from './solicitudStore';
 import type { Answer, Criticality, ExtraQuestion } from './questionnaireStore';
 import type { QuestionResponsibility } from '../data/questionnaires.data';
 import type { ScenarioRow } from '../data/scenarios.data';
+import type { ManualRisk } from './manualRiskStore';
 
 export interface CompletedEvaluation {
   id: string;
@@ -31,6 +32,7 @@ export interface CompletedEvaluation {
     customResponsibility: Record<string, Record<string, QuestionResponsibility>>;
     extraQuestions: Record<string, ExtraQuestion[]>;
     scenarios: Record<string, ScenarioRow[]>;
+    manualRisks?: ManualRisk[];
   };
 }
 

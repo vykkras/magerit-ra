@@ -70,12 +70,10 @@ export interface ResolucionContext {
   compliance: number | null;
   /** Puntuación TPRM del proveedor (0-100) */
   tprm: number | null;
-  /** Riesgos residuales en zona crítica + alta (a tratar) */
+  /** Riesgos residuales en zona alta + muy alta (a tratar) */
   riesgosATratar: number;
-  /** Total de amenazas evaluadas */
+  /** Total de riesgos evaluados */
   totalRiesgos: number;
-  /** Reducción media de riesgo lograda por los controles (%) */
-  reduccion: number;
   /** Salvaguardas pendientes (respuestas "No" del proveedor), sin duplicar */
   salvaguardasPendientes: string[];
 }
@@ -119,7 +117,7 @@ export function buildResolucion(resultado: ResultadoEval, ctx: ResolucionContext
       parrafos: [
         `Tras analizar la solicitud de uso de ${sol}, evaluar la funcionalidad y el objetivo que se pretende cubrir, y realizar la correspondiente evaluación de impacto y análisis de riesgos conforme a la metodología corporativa MAINS, se ha valorado favorablemente su adopción en el entorno corporativo.`,
         `La evaluación ha tenido en cuenta, entre otros aspectos, las características y limitaciones de la solución, el modelo de gestión de la información asociado a su uso, así como los riesgos identificados en materia de seguridad de la información, cumplimiento normativo y gestión de riesgos. Dicho análisis se ha apoyado en la valoración de riesgos realizada con la metodología MAINS, considerando igualmente el nivel de control y protección proporcionado por los mecanismos de seguridad corporativos.${cumplimientoFrase(ctx)}`,
-        `No se han identificado riesgos residuales relevantes que impidan la adopción de ${sol}. El nivel de riesgo residual obtenido se sitúa en valores aceptables conforme a los criterios corporativos, y los controles existentes —tanto los propios de la solución como los técnicos y organizativos de la organización— proporcionan una mitigación adecuada de las amenazas identificadas, logrando una reducción media del riesgo del ${ctx.reduccion}%.`,
+        `No se han identificado riesgos residuales relevantes que impidan la adopción de ${sol}. El nivel de riesgo residual obtenido se sitúa en valores aceptables conforme a los criterios corporativos, y los controles existentes —tanto los propios de la solución como los técnicos y organizativos de la organización— proporcionan una mitigación adecuada de las amenazas identificadas.`,
         `En consecuencia, se resuelve recomendar el uso de ${sol} para los fines analizados en el presente informe, sin perjuicio de las revisiones periódicas que correspondan conforme a los procedimientos de gestión de riesgos de la organización.`,
       ],
     };

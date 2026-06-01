@@ -12,29 +12,26 @@ import {
   DOC_PROPS, DOCUMENTOS_REFERENCIA, TERMINOS_DEFINICIONES,
   METODOLOGIA_PARRAFOS, VIGENCIA_PARRAFOS, INDICE,
 } from '../data/informe.data';
+import { ZONE_FILL, zoneFromPI, type ZoneLevel } from '../data/riskScale';
 
 const NAVY = '1E3A5F';
 const GREY = '64748B';
 const LIGHT = 'F1F5F9';
 const BORDER = 'CBD5E1';
 
-const ZONE_FILL: Record<string, string> = {
-  critico: 'FEE2E2', alto: 'FED7AA', medio: 'FEF9C3', bajo: 'DCFCE7',
-};
-
 export interface InformeDocxRisk {
-  code: string; name: string; probLabel: string; zoneLabel: string; zoneLevel: string;
+  activo: string; amenaza: string; probLabel: string; zoneLabel: string; zoneLevel: ZoneLevel;
 }
 
 export interface InformeDocxData {
   fecha: string; pst: string; solucion: string; proveedor: string;
   categoriaNombre: string; resolTitulo: string;
   compliance: number | null; tprm: number | null;
-  reduccion: number; riesgosATratar: number; totalRiesgos: number;
+  riesgosATratar: number; totalRiesgos: number;
   risks: InformeDocxRisk[];
-  mapCounts: number[][];          // [imp-1][prob-1]
+  mapCounts: number[][];          // [imp-1][prob-1] (5×5)
   probLabels: string[]; impLabels: string[];
-  amenazas: { code: string; name: string; zoneLabel: string }[];
+  amenazas: { amenaza: string; zoneLabel: string }[];
   resol: { titulo: string; parrafos: string[]; acciones?: string[] } | null;
 }
 
@@ -193,8 +190,8 @@ function riskTable(d: InformeDocxData): Table {
     ? [new TableRow({ children: [cell({ text: 'Sin riesgos evaluados.', color: GREY, align: AlignmentType.CENTER })] })]
     : d.risks.map(r => new TableRow({
         children: [
-          cell({ text: d.solucion }),
-          cell({ text: `${r.code} — ${r.name}` }),
+          cell({ text: r.activo }),
+          cell({ text: r.amenaza }),
           cell({ text: r.probLabel }),
           cell({ text: r.zoneLabel, bold: true, fill: ZONE_FILL[r.zoneLevel] }),
         ],
@@ -202,31 +199,25 @@ function riskTable(d: InformeDocxData): Table {
   return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [head, ...body] });
 }
 
-function mapLevel(prob: number, imp: number): string {
-  const sc = prob * imp;
-  if (sc >= 9) return 'critico';
-  if (sc >= 6) return 'alto';
-  if (sc >= 4) return 'medio';
-  return 'bajo';
-}
+const LEVELS = [1, 2, 3, 4, 5];
 
 function riskMap(d: InformeDocxData): Table {
   const head = new TableRow({
     children: [
       cell({ text: 'Impacto residual / Probabilidad residual', bold: true, color: 'FFFFFF', fill: NAVY, size: 16 }),
-      ...[1, 2, 3, 4].map(p => cell({ text: d.probLabels[p], bold: true, fill: 'E2E8F0', align: AlignmentType.CENTER, size: 16 })),
+      ...LEVELS.map(p => cell({ text: d.probLabels[p], bold: true, fill: 'E2E8F0', align: AlignmentType.CENTER, size: 16 })),
       cell({ text: 'Total', bold: true, color: NAVY, fill: LIGHT, align: AlignmentType.CENTER }),
     ],
   });
-  const rows = [4, 3, 2, 1].map(imp => {
+  const rows = [5, 4, 3, 2, 1].map(imp => {
     const counts = d.mapCounts[imp - 1];
     const total = counts.reduce((a, b) => a + b, 0);
     return new TableRow({
       children: [
         cell({ text: d.impLabels[imp], bold: true, fill: 'E2E8F0', size: 16 }),
-        ...[1, 2, 3, 4].map(p => cell({
+        ...LEVELS.map(p => cell({
           text: counts[p - 1] > 0 ? String(counts[p - 1]) : '',
-          bold: true, align: AlignmentType.CENTER, fill: ZONE_FILL[mapLevel(p, imp)],
+          bold: true, align: AlignmentType.CENTER, fill: ZONE_FILL[zoneFromPI(p, imp)],
         })),
         cell({ text: String(total), bold: true, color: NAVY, fill: LIGHT, align: AlignmentType.CENTER }),
       ],
@@ -235,8 +226,8 @@ function riskMap(d: InformeDocxData): Table {
   const totalRow = new TableRow({
     children: [
       cell({ text: 'Total', bold: true, color: NAVY, fill: LIGHT }),
-      ...[1, 2, 3, 4].map(p => {
-        const colTotal = [0, 1, 2, 3].reduce((a, imp) => a + d.mapCounts[imp][p - 1], 0);
+      ...LEVELS.map(p => {
+        const colTotal = [0, 1, 2, 3, 4].reduce((a, imp) => a + d.mapCounts[imp][p - 1], 0);
         return cell({ text: String(colTotal), bold: true, color: NAVY, fill: LIGHT, align: AlignmentType.CENTER });
       }),
       cell({ text: String(d.totalRiesgos), bold: true, color: NAVY, fill: LIGHT, align: AlignmentType.CENTER }),
@@ -355,7 +346,7 @@ export async function downloadInformeDocx(d: InformeDocxData): Promise<void> {
   if (d.amenazas.length === 0) {
     children.push(bullet('No se han identificado amenazas con riesgo residual relevante.'));
   } else {
-    d.amenazas.forEach(a => children.push(bullet(`${a.code} — ${a.name} (riesgo residual ${a.zoneLabel.toLowerCase()})`)));
+    d.amenazas.forEach(a => children.push(bullet(`${a.amenaza} (riesgo residual ${a.zoneLabel.toLowerCase()})`)));
   }
   children.push(para('Los resultados del análisis de seguridad reflejan el grado de exposición a riesgos asociado a la solución, así como a los controles aplicados en materia de acceso, protección de datos y uso de servicios externos. La evaluación permite valorar el nivel de adecuación de la solución al marco de seguridad establecido, facilitando la identificación de posibles mejoras orientadas a reforzar la protección de la información y el cumplimiento de la normativa vigente en materia de seguridad y privacidad.'));
 

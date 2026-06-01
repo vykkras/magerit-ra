@@ -2,8 +2,12 @@ import { useMemo, useState } from 'react';
 import { useSolicitudStore } from '../../store/solicitudStore';
 import { useQuestionnaireStore } from '../../store/questionnaireStore';
 import { useCategoryStore } from '../../store/categoryStore';
+import { useManualRiskStore } from '../../store/manualRiskStore';
 import { CATEGORY_QUESTIONNAIRES } from '../../data/questionnaires.data';
-import { useRiskAnalysis, LEVEL_LABEL, type RiskLevel } from '../../hooks/useRiskAnalysis';
+import {
+  computeRiskSummary, PROB_LABELS, IMP_LABELS,
+  ZONE_BG, ZONE_COLOR, zoneFromPI,
+} from '../../data/riskScale';
 import { downloadInformeDocx } from '../../utils/informeDocx';
 import {
   DOC_PROPS,
@@ -17,9 +21,6 @@ import {
 } from '../../data/informe.data';
 import s from './InformePage.module.css';
 
-const PROB_LABELS = ['', 'Muy improbable', 'Improbable', 'Normal', 'Frecuente'];
-const IMP_LABELS  = ['', 'Muy bajo', 'Bajo', 'Medio', 'Alto'];
-
 function fmtDate(iso: string): string {
   if (!iso) return '—';
   const [y, m, d] = iso.split('-');
@@ -30,10 +31,13 @@ export default function InformePage() {
   const sol = useSolicitudStore();
   const { answers } = useQuestionnaireStore();
   const { categories } = useCategoryStore();
-  const { rows, stats } = useRiskAnalysis();
+  const { risks } = useManualRiskStore();
 
   const catId = sol.categoriaId ?? '';
   const categoriaNombre = categories.find(c => c.id === catId)?.name ?? '—';
+
+  const summary = useMemo(() => computeRiskSummary(risks), [risks]);
+  const totalRiesgos = summary.total;
 
   const compliance = useMemo(() => {
     const qs = CATEGORY_QUESTIONNAIRES[catId] ?? [];
@@ -43,28 +47,26 @@ export default function InformePage() {
     return Math.round((yes / qs.length) * 100);
   }, [catId, answers]);
 
-  const riesgosATratar = rows.filter(r => r.residualLevel === 'critico' || r.residualLevel === 'alto').length;
-
+  // Salvaguardas pendientes = preguntas del cuestionario respondidas "No"
   const salvaguardasPendientes = useMemo(() => {
-    const seen = new Set<string>();
-    rows.forEach(r => r.missingSafeguards.forEach(sg => seen.add(sg)));
-    return [...seen];
-  }, [rows]);
+    const qs = CATEGORY_QUESTIONNAIRES[catId] ?? [];
+    const catA = answers[catId] ?? {};
+    return qs.filter(q => catA[q.id] === 'no').map(q => q.text);
+  }, [catId, answers]);
+
+  const riesgosATratar = summary.zoneCounts.alto + summary.zoneCounts.muy_alto;
+
+  // Riesgos ordenados de mayor a menor para tabla y amenazas principales
+  const risksSorted = useMemo(
+    () => [...summary.rows].sort((a, b) => b.score - a.score),
+    [summary.rows]
+  );
 
   const amenazasPrincipales = useMemo(() => {
-    const sorted = [...rows].sort((a, b) => b.residualScore - a.residualScore);
-    const relevant = sorted.filter(r => r.residualLevel === 'critico' || r.residualLevel === 'alto');
-    return (relevant.length > 0 ? relevant : sorted.slice(0, 3)).filter(r => r.residualScore > 0);
-  }, [rows]);
+    const relevant = risksSorted.filter(r => r.zoneLevel === 'alto' || r.zoneLevel === 'muy_alto');
+    return relevant.length > 0 ? relevant : risksSorted.slice(0, 3);
+  }, [risksSorted]);
 
-  // Mapa de riesgos: conteo por Impacto (filas) × Probabilidad (columnas), residual
-  const mapCounts = useMemo(() => {
-    const grid: number[][] = [0, 1, 2, 3].map(() => [0, 0, 0, 0]); // [imp-1][prob-1]
-    rows.forEach(r => { grid[r.residualImpact - 1][r.prob - 1]++; });
-    return grid;
-  }, [rows]);
-
-  const totalRiesgos = rows.length;
   const resultado = sol.resultado;
 
   const resol = resultado
@@ -75,19 +77,17 @@ export default function InformePage() {
         tprm: sol.tprmScore,
         riesgosATratar,
         totalRiesgos,
-        reduccion: stats.reduction,
         salvaguardasPendientes,
       })
     : null;
 
-  const datosIncompletos = !catId || totalRiesgos === 0;
+  const datosIncompletos = totalRiesgos === 0;
   const solucionTxt = sol.solucion?.trim() || '[Solución]';
   const proveedorTxt = sol.proveedor?.trim() || '[Proveedor]';
   const fecha = fmtDate(sol.fechaSolicitud);
   const pst = sol.referenciaPST || '—';
   const resolTitulo = resolucionTitulo(resultado);
 
-  // Cabecera repetida (Word) — Fecha / Nº PST / Solución / Proveedor / Resolución
   const headerRows: [string, string][] = [
     ['Fecha', fecha],
     ['Nº de PST', pst],
@@ -106,20 +106,19 @@ export default function InformePage() {
         fecha, pst, solucion: solucionTxt, proveedor: proveedorTxt,
         categoriaNombre, resolTitulo,
         compliance, tprm: sol.tprmScore,
-        reduccion: stats.reduction, riesgosATratar, totalRiesgos,
-        risks: [...rows]
-          .sort((a, b) => b.residualScore - a.residualScore)
-          .map(r => ({
-            code: r.code, name: r.name,
-            probLabel: PROB_LABELS[r.prob] ?? String(r.prob),
-            zoneLabel: LEVEL_LABEL[r.residualLevel],
-            zoneLevel: r.residualLevel,
-          })),
-        mapCounts,
+        riesgosATratar, totalRiesgos,
+        risks: risksSorted.map(r => ({
+          activo: r.activo || '—',
+          amenaza: r.amenaza || '—',
+          probLabel: r.probLabel,
+          zoneLabel: r.zoneLabel,
+          zoneLevel: r.zoneLevel,
+        })),
+        mapCounts: summary.mapCounts,
         probLabels: PROB_LABELS,
         impLabels: IMP_LABELS,
         amenazas: amenazasPrincipales.map(r => ({
-          code: r.code, name: r.name, zoneLabel: LEVEL_LABEL[r.residualLevel],
+          amenaza: r.amenaza || '—', zoneLabel: r.zoneLabel,
         })),
         resol: resol ? { titulo: resol.titulo, parrafos: resol.parrafos, acciones: resol.acciones } : null,
       });
@@ -161,8 +160,8 @@ export default function InformePage() {
 
         {datosIncompletos && (
           <div className={`${s.warn} no-print`}>
-            Faltan datos de la evaluación. Completa la categorización y el cuestionario avanzado para que el
-            informe refleje el análisis de riesgos completo.
+            No hay riesgos en el Análisis de Riesgos. Introduce las filas de la matriz (Fase 2 · Análisis de
+            Riesgos) para que el informe refleje la tabla y el mapa de riesgos.
           </div>
         )}
 
@@ -289,47 +288,45 @@ export default function InformePage() {
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 ? (
+              {risksSorted.length === 0 ? (
                 <tr><td colSpan={4} className={s.tdEmpty}>Sin riesgos evaluados.</td></tr>
               ) : (
-                [...rows]
-                  .sort((a, b) => b.residualScore - a.residualScore)
-                  .map(r => (
-                    <tr key={r.code}>
-                      <td>{solucionTxt}</td>
-                      <td><span className={s.codeCell}>{r.code}</span> — {r.name}</td>
-                      <td>{PROB_LABELS[r.prob] ?? r.prob}</td>
-                      <td>
-                        <span className={`${s.zoneBadge} ${s[`zone_${r.residualLevel}`]}`}>
-                          {LEVEL_LABEL[r.residualLevel]}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                risksSorted.map(r => (
+                  <tr key={r.id}>
+                    <td>{r.activo || '—'}</td>
+                    <td>{r.amenaza || '—'}</td>
+                    <td>{r.probLabel}</td>
+                    <td>
+                      <span className={s.zoneBadge} style={{ background: ZONE_BG[r.zoneLevel], color: ZONE_COLOR[r.zoneLevel] }}>
+                        {r.zoneLabel}
+                      </span>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
 
-          {/* Mapa de riesgos */}
+          {/* Mapa de riesgos 5×5 */}
           <p className={s.mapCaption}><strong>Mapa de Riesgos</strong> — Total riesgos: {totalRiesgos}</p>
           <div className={s.mapWrap}>
             <table className={s.mapTable}>
               <thead>
                 <tr>
                   <th className={s.mapCorner}>Impacto residual / Probabilidad residual</th>
-                  {[1, 2, 3, 4].map(p => <th key={p} className={s.mapAxis}>{PROB_LABELS[p]}</th>)}
+                  {[1, 2, 3, 4, 5].map(p => <th key={p} className={s.mapAxis}>{PROB_LABELS[p]}</th>)}
                   <th className={s.mapTotal}>Total</th>
                 </tr>
               </thead>
               <tbody>
-                {[4, 3, 2, 1].map(imp => {
-                  const rowCounts = mapCounts[imp - 1];
+                {[5, 4, 3, 2, 1].map(imp => {
+                  const rowCounts = summary.mapCounts[imp - 1];
                   const rowTotal = rowCounts.reduce((a, b) => a + b, 0);
                   return (
                     <tr key={imp}>
                       <td className={s.mapAxis}>{IMP_LABELS[imp]}</td>
-                      {[1, 2, 3, 4].map(p => (
-                        <td key={p} className={s.mapCell} style={{ background: cellBg(cellLevel(p, imp)) }}>
+                      {[1, 2, 3, 4, 5].map(p => (
+                        <td key={p} className={s.mapCell} style={{ background: ZONE_BG[zoneFromPI(p, imp)] }}>
                           {rowCounts[p - 1] > 0 ? rowCounts[p - 1] : ''}
                         </td>
                       ))}
@@ -339,8 +336,8 @@ export default function InformePage() {
                 })}
                 <tr>
                   <td className={s.mapTotal}>Total</td>
-                  {[1, 2, 3, 4].map(p => {
-                    const colTotal = [0, 1, 2, 3].reduce((a, imp) => a + mapCounts[imp][p - 1], 0);
+                  {[1, 2, 3, 4, 5].map(p => {
+                    const colTotal = [0, 1, 2, 3, 4].reduce((a, imp) => a + summary.mapCounts[imp][p - 1], 0);
                     return <td key={p} className={`${s.mapCell} ${s.mapTotal}`}>{colTotal}</td>;
                   })}
                   <td className={`${s.mapCell} ${s.mapTotal}`}>{totalRiesgos}</td>
@@ -355,8 +352,8 @@ export default function InformePage() {
               <li>No se han identificado amenazas con riesgo residual relevante.</li>
             ) : (
               amenazasPrincipales.map(r => (
-                <li key={r.code}>
-                  <strong>{r.code}</strong> — {r.name} (riesgo residual <em>{LEVEL_LABEL[r.residualLevel].toLowerCase()}</em>)
+                <li key={r.id}>
+                  <strong>{r.amenaza || '—'}</strong>{r.activo ? ` (${r.activo})` : ''} — riesgo residual <em>{r.zoneLabel.toLowerCase()}</em>
                 </li>
               ))
             )}
@@ -410,23 +407,4 @@ export default function InformePage() {
       </div>
     </div>
   );
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function cellLevel(prob: number, imp: number): RiskLevel {
-  const sc = prob * imp;
-  if (sc >= 9) return 'critico';
-  if (sc >= 6) return 'alto';
-  if (sc >= 4) return 'medio';
-  return 'bajo';
-}
-
-function cellBg(lvl: RiskLevel): string {
-  switch (lvl) {
-    case 'critico': return '#fee2e2';
-    case 'alto':    return '#fed7aa';
-    case 'medio':   return '#fef9c3';
-    default:        return '#dcfce7';
-  }
 }

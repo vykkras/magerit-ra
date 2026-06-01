@@ -5,6 +5,7 @@ import { useQuestionnaireStore } from './store/questionnaireStore';
 import { useRiskScenarioStore } from './store/riskScenarioStore';
 import { useCompletedStore } from './store/completedStore';
 import { useCategoryStore } from './store/categoryStore';
+import { useManualRiskStore } from './store/manualRiskStore';
 import { CATEGORY_QUESTIONNAIRES, type Question } from './data/questionnaires.data';
 import HomePage from './components/home/HomePage';
 import InfoGeneral from './components/fase1/InfoGeneral';
@@ -143,6 +144,7 @@ export default function App() {
   const scenarioStore                 = useRiskScenarioStore();
   const { scenarios }                 = scenarioStore;
   const { categories }                = useCategoryStore();
+  const manualRiskStore               = useManualRiskStore();
   const { add: addCompleted, update: updateCompleted, remove: removeCompleted } = useCompletedStore();
   const done = useCompletionStatus();
 
@@ -202,6 +204,7 @@ export default function App() {
         customResponsibility,
         extraQuestions,
         scenarios,
+        manualRisks: manualRiskStore.risks,
       },
     };
   }
@@ -216,6 +219,7 @@ export default function App() {
     }
     solicitud.reset();
     categories.forEach(c => questionnaireStore.resetCategory(c.id));
+    manualRiskStore.clear();
     setPage('home');
   }
 
@@ -232,6 +236,7 @@ export default function App() {
       extraQuestions:       snapshot.extraQuestions,
     });
     scenarioStore.loadState(snapshot.scenarios);
+    manualRiskStore.loadState(snapshot.manualRisks ?? []);
     removeCompleted(ev.id);
     setEditingId(ev.id);
     setPage('solicitud');
