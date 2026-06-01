@@ -96,39 +96,61 @@ export default function InformePage() {
     ['Resolución', resolTitulo],
   ];
 
-  const [generando, setGenerando] = useState(false);
+  const [generando, setGenerando] = useState('');
 
-  async function handleDescargarWord() {
+  function basePayload() {
+    return {
+      fecha, pst, solucion: solucionTxt, proveedor: proveedorTxt,
+      categoriaNombre,
+      compliance, tprm: sol.tprmScore,
+      riesgosATratar, totalRiesgos,
+      risks: risksSorted.map(r => ({
+        activo: r.activo || '—',
+        amenaza: r.amenaza || '—',
+        probLabel: r.probLabel,
+        zoneLabel: r.zoneLabel,
+        zoneLevel: r.zoneLevel,
+      })),
+      mapCounts: summary.mapCounts,
+      probLabels: PROB_LABELS,
+      impLabels: IMP_LABELS,
+      amenazas: amenazasPrincipales.map(r => ({
+        amenaza: r.amenaza || '—', zoneLabel: r.zoneLabel,
+      })),
+    };
+  }
+
+  async function run(kind: string, extra: Record<string, unknown>) {
     if (generando) return;
-    setGenerando(true);
+    setGenerando(kind);
     try {
-      await downloadInformeDocx({
-        fecha, pst, solucion: solucionTxt, proveedor: proveedorTxt,
-        categoriaNombre, resolTitulo,
-        compliance, tprm: sol.tprmScore,
-        riesgosATratar, totalRiesgos,
-        risks: risksSorted.map(r => ({
-          activo: r.activo || '—',
-          amenaza: r.amenaza || '—',
-          probLabel: r.probLabel,
-          zoneLabel: r.zoneLabel,
-          zoneLevel: r.zoneLevel,
-        })),
-        mapCounts: summary.mapCounts,
-        probLabels: PROB_LABELS,
-        impLabels: IMP_LABELS,
-        amenazas: amenazasPrincipales.map(r => ({
-          amenaza: r.amenaza || '—', zoneLabel: r.zoneLabel,
-        })),
-        resol: resol ? { titulo: resol.titulo, parrafos: resol.parrafos, acciones: resol.acciones } : null,
-      });
+      await downloadInformeDocx({ ...basePayload(), ...extra } as Parameters<typeof downloadInformeDocx>[0]);
     } catch (e) {
       console.error('Error generando el Word del informe:', e);
       alert('No se pudo generar el documento Word. Revisa la consola para más detalles.');
     } finally {
-      setGenerando(false);
+      setGenerando('');
     }
   }
+
+  const handleDescargarWord = () =>
+    run('word', {
+      resolTitulo,
+      resol: resol ? { titulo: resol.titulo, parrafos: resol.parrafos, acciones: resol.acciones } : null,
+    });
+
+  const handleDescargarPlantilla = () => {
+    const ctx = {
+      solucion: solucionTxt, proveedor: proveedorTxt,
+      compliance, tprm: sol.tprmScore,
+      riesgosATratar, totalRiesgos, salvaguardasPendientes,
+    };
+    const resoluciones = (['ok', 'ok-condiciones', 'ko'] as const).map((rk) => {
+      const rr = buildResolucion(rk, ctx);
+      return { titulo: rr.titulo, parrafos: rr.parrafos, acciones: rr.acciones };
+    });
+    return run('plantilla', { resolTitulo: 'Plantilla — todos los resultados', resol: null, resoluciones });
+  };
 
   return (
     <div className={s.wrap}>
@@ -139,9 +161,14 @@ export default function InformePage() {
           <span className={s.toolbarTitle}>Informe de Evaluación</span>
           <span className={s.toolbarSub}>Se autocompleta con los datos de la evaluación · Descárgalo en Word (.docx)</span>
         </div>
-        <button className={s.btnPrimary} onClick={handleDescargarWord} disabled={generando}>
-          {generando ? 'Generando…' : '⤓ Descargar Word'}
-        </button>
+        <div className={s.toolbarActions}>
+          <button className={s.btnSecondary} onClick={handleDescargarPlantilla} disabled={!!generando}>
+            {generando === 'plantilla' ? 'Generando…' : '⤓ Plantilla (3 resultados)'}
+          </button>
+          <button className={s.btnPrimary} onClick={handleDescargarWord} disabled={!!generando}>
+            {generando === 'word' ? 'Generando…' : '⤓ Descargar Word'}
+          </button>
+        </div>
       </div>
 
       <div className={s.doc} id="informe-print">

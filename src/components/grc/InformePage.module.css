@@ -43,6 +43,24 @@
 .btnPrimary:hover { background: #15293f; }
 .btnPrimary:disabled { opacity: 0.6; cursor: default; }
 
+.toolbarActions { display: flex; gap: 10px; align-items: center; }
+
+.btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  background: #fff;
+  color: #1e3a5f;
+  border: 1px solid #c7d0dc;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btnSecondary:hover { background: #f1f5f9; border-color: #1e3a5f; }
+.btnSecondary:disabled { opacity: 0.6; cursor: default; }
+
 /* ── Documento ───────────────────────────────────────────────────────────── */
 
 .doc {

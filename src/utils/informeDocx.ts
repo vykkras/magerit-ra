@@ -6,7 +6,7 @@
 import {
   Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
   Table, TableRow, TableCell, WidthType, BorderStyle, ImageRun, Header,
-  VerticalAlign, ShadingType,
+  VerticalAlign, ShadingType, PageBreak,
 } from 'docx';
 import {
   DOC_PROPS, DOCUMENTOS_REFERENCIA, TERMINOS_DEFINICIONES,
@@ -33,6 +33,9 @@ export interface InformeDocxData {
   probLabels: string[]; impLabels: string[];
   amenazas: { amenaza: string; zoneLabel: string }[];
   resol: { titulo: string; parrafos: string[]; acciones?: string[] } | null;
+  /** Plantilla: si se aporta, el documento incluye las conclusiones de los
+   *  tres resultados posibles, una tras otra, en lugar de una sola. */
+  resoluciones?: { titulo: string; parrafos: string[]; acciones?: string[] }[];
 }
 
 // ── Helpers de construcción ──────────────────────────────────────────────────
@@ -114,6 +117,8 @@ function fichaTable(pairs: [string, string][]): Table {
     })),
   });
 }
+
+const pageBreak = () => new Paragraph({ children: [new PageBreak()] });
 
 async function fetchImage(url: string): Promise<Uint8Array> {
   const buf = await (await fetch(url)).arrayBuffer();
@@ -273,10 +278,11 @@ export async function downloadInformeDocx(d: InformeDocxData): Promise<void> {
 
   const children: (Paragraph | Table)[] = [];
 
-  // Portada
+  // Portada (página 1)
   children.push(...coverChildren(d, banner));
+  children.push(pageBreak());
 
-  // Propiedades del documento
+  // Propiedades del documento (página 2)
   children.push(h1('', 'Propiedades del documento'));
   children.push(fichaTable([
     ['Nombre del documento', DOC_PROPS.nombre],
@@ -309,8 +315,9 @@ export async function downloadInformeDocx(d: InformeDocxData): Promise<void> {
   }));
   children.push(h2('Vigencia'));
   VIGENCIA_PARRAFOS.forEach(p => children.push(para(p)));
+  children.push(pageBreak());
 
-  // Índice
+  // Índice (página 3)
   children.push(h1('', 'Índice'));
   INDICE.forEach(item => {
     children.push(new Paragraph({ spacing: { after: 40 }, children: [txt(`${item.n}.  ${item.t}`, { bold: true })] }));
@@ -319,8 +326,9 @@ export async function downloadInformeDocx(d: InformeDocxData): Promise<void> {
       children: [txt(`${sub.n}  ${sub.t}`, { color: '475569' })],
     })));
   });
+  children.push(pageBreak());
 
-  // 1. Introducción
+  // 1. Introducción (página 4 en adelante)
   children.push(h1('1.', 'Introducción'));
   children.push(h2('1.1 Objetivo'));
   children.push(para(`El presente informe tiene como propósito evaluar el uso corporativo de ${d.solucion}, proporcionada por ${d.proveedor}. El análisis examina si su adopción resulta recomendable desde una perspectiva de seguridad.`));
@@ -352,14 +360,25 @@ export async function downloadInformeDocx(d: InformeDocxData): Promise<void> {
 
   // 4. Resolución
   children.push(h1('4.', 'Resolución'));
-  children.push(h2('4.1 Resolución'));
-  if (d.resol) {
-    children.push(new Paragraph({ spacing: { after: 120 }, children: [txt(d.resol.titulo, { bold: true, size: 24 })] }));
-    d.resol.parrafos.forEach(p => children.push(para(p)));
-    if (d.resol.acciones) {
-      d.resol.acciones.forEach(a => children.push(new Paragraph({ numbering: { reference: 'acciones', level: 0 }, spacing: { after: 80 }, children: [txt(a, {})] })));
+  const pushResol = (r: { titulo: string; parrafos: string[]; acciones?: string[] }) => {
+    r.parrafos.forEach(p => children.push(para(p)));
+    if (r.acciones) {
+      r.acciones.forEach(a => children.push(new Paragraph({ numbering: { reference: 'acciones', level: 0 }, spacing: { after: 80 }, children: [txt(a, {})] })));
     }
+  };
+
+  if (d.resoluciones && d.resoluciones.length) {
+    children.push(para('Este documento es una plantilla: incluye las conclusiones para los tres resultados posibles. Conserva únicamente el apartado correspondiente al resultado final de la evaluación.'));
+    d.resoluciones.forEach((r) => {
+      children.push(h2(r.titulo));
+      pushResol(r);
+    });
+  } else if (d.resol) {
+    children.push(h2('4.1 Resolución'));
+    children.push(new Paragraph({ spacing: { after: 120 }, children: [txt(d.resol.titulo, { bold: true, size: 24 })] }));
+    pushResol(d.resol);
   } else {
+    children.push(h2('4.1 Resolución'));
     children.push(para('Aún no se ha seleccionado el resultado de la evaluación.'));
   }
   children.push(new Paragraph({ text: '', spacing: { before: 400 } }));
