@@ -6,11 +6,11 @@
 import {
   Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
   Table, TableRow, TableCell, WidthType, BorderStyle, ImageRun, Header,
-  VerticalAlign, ShadingType, PageBreak, Footer, PageNumber,
+  VerticalAlign, ShadingType, PageBreak, Footer, PageNumber, TableOfContents,
 } from 'docx';
 import {
   DOC_PROPS, DOCUMENTOS_REFERENCIA, TERMINOS_DEFINICIONES,
-  METODOLOGIA_PARRAFOS, VIGENCIA_PARRAFOS, INDICE,
+  METODOLOGIA_PARRAFOS, VIGENCIA_PARRAFOS,
 } from '../data/informe.data';
 import { ZONE_FILL, zoneFromPI, type ZoneLevel } from '../data/riskScale';
 
@@ -63,6 +63,21 @@ function h1(num: string, text: string): Paragraph {
 function h2(text: string): Paragraph {
   return new Paragraph({
     heading: HeadingLevel.HEADING_2,
+    spacing: { before: 200, after: 100 },
+    children: [txt(text, { bold: true, color: '334155', size: 26 })],
+  });
+}
+
+// Encabezados de portada / front-matter: mismo aspecto que h1/h2 pero SIN estilo
+// "Heading", para que no aparezcan en la Tabla de Contenido (índice real).
+function frontH1(text: string): Paragraph {
+  return new Paragraph({
+    spacing: { before: 280, after: 140 },
+    children: [txt(text, { bold: true, color: NAVY, size: 30 })],
+  });
+}
+function frontH2(text: string): Paragraph {
+  return new Paragraph({
     spacing: { before: 200, after: 100 },
     children: [txt(text, { bold: true, color: '334155', size: 26 })],
   });
@@ -256,7 +271,7 @@ export async function downloadInformeDocx(d: InformeDocxData): Promise<void> {
   children.push(pageBreak());
 
   // Propiedades del documento (página 2)
-  children.push(h1('', 'Propiedades del documento'));
+  children.push(frontH1('Propiedades del documento'));
   children.push(fichaTable([
     ['Nombre del documento', DOC_PROPS.nombre],
     ['Tipo', DOC_PROPS.tipo],
@@ -264,7 +279,7 @@ export async function downloadInformeDocx(d: InformeDocxData): Promise<void> {
     ['Propietario', DOC_PROPS.propietario],
     ['Clasificación', DOC_PROPS.clasificacion],
   ]));
-  children.push(h2('Historial de revisiones'));
+  children.push(frontH2('Historial de revisiones'));
   children.push(new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
@@ -280,19 +295,13 @@ export async function downloadInformeDocx(d: InformeDocxData): Promise<void> {
       ] }),
     ],
   }));
-  children.push(h2('Vigencia'));
+  children.push(frontH2('Vigencia'));
   VIGENCIA_PARRAFOS.forEach(p => children.push(para(p)));
   children.push(pageBreak());
 
-  // Índice (página 3)
-  children.push(h1('', 'Índice'));
-  INDICE.forEach(item => {
-    children.push(new Paragraph({ spacing: { after: 40 }, children: [txt(`${item.n}.  ${item.t}`, { bold: true })] }));
-    item.sub.forEach(sub => children.push(new Paragraph({
-      indent: { left: 360 }, spacing: { after: 30 },
-      children: [txt(`${sub.n}  ${sub.t}`, { color: '475569' })],
-    })));
-  });
+  // Índice (página 3) — Tabla de Contenido real de Word (páginas según paginación)
+  children.push(frontH1('Índice'));
+  children.push(new TableOfContents('Índice', { hyperlink: true, headingStyleRange: '1-2' }));
   children.push(pageBreak());
 
   // 1. Introducción (página 4 en adelante)
@@ -350,6 +359,7 @@ export async function downloadInformeDocx(d: InformeDocxData): Promise<void> {
   }
 
   const doc = new Document({
+    features: { updateFields: true },
     numbering: {
       config: [{
         reference: 'acciones',
