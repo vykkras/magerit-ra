@@ -6,7 +6,7 @@
 import {
   Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
   Table, TableRow, TableCell, WidthType, BorderStyle, ImageRun, Header,
-  VerticalAlign, ShadingType, PageBreak,
+  VerticalAlign, ShadingType, PageBreak, Footer, PageNumber,
 } from 'docx';
 import {
   DOC_PROPS, DOCUMENTOS_REFERENCIA, TERMINOS_DEFINICIONES,
@@ -241,33 +241,6 @@ function riskMap(d: InformeDocxData): Table {
   return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [head, ...rows, totalRow] });
 }
 
-function firmaTable(): Table {
-  const col = (rol: string, ent: string) => cell({
-    borders: noBorders, width: 33,
-    children: [
-      new Paragraph({ text: '', spacing: { after: 360 }, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: '94A3B8' } } }),
-      new Paragraph({ alignment: AlignmentType.CENTER, children: [txt(rol, { bold: true, color: '334155', size: 18 })] }),
-      new Paragraph({ alignment: AlignmentType.CENTER, children: [txt(ent, { color: GREY, size: 16 })] }),
-    ],
-  });
-  return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    borders: {
-      top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-      bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-      left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-      right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-      insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-      insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-    },
-    rows: [new TableRow({ children: [
-      col('Elaborado por', DOC_PROPS.elaboradoPor),
-      col('Revisado por', DOC_PROPS.revisadoPor),
-      col('Aprobado por', DOC_PROPS.aprobadoPor),
-    ] })],
-  });
-}
-
 // ── Documento completo ───────────────────────────────────────────────────────
 
 export async function downloadInformeDocx(d: InformeDocxData): Promise<void> {
@@ -290,12 +263,6 @@ export async function downloadInformeDocx(d: InformeDocxData): Promise<void> {
     ['Resumen', DOC_PROPS.resumen],
     ['Propietario', DOC_PROPS.propietario],
     ['Clasificación', DOC_PROPS.clasificacion],
-  ]));
-  children.push(h2('Participantes'));
-  children.push(fichaTable([
-    ['Elaborado por', DOC_PROPS.elaboradoPor],
-    ['Revisado por', DOC_PROPS.revisadoPor],
-    ['Aprobado por', DOC_PROPS.aprobadoPor],
   ]));
   children.push(h2('Historial de revisiones'));
   children.push(new Table({
@@ -381,8 +348,6 @@ export async function downloadInformeDocx(d: InformeDocxData): Promise<void> {
     children.push(h2('4.1 Resolución'));
     children.push(para('Aún no se ha seleccionado el resultado de la evaluación.'));
   }
-  children.push(new Paragraph({ text: '', spacing: { before: 400 } }));
-  children.push(firmaTable());
 
   const doc = new Document({
     numbering: {
@@ -399,6 +364,14 @@ export async function downloadInformeDocx(d: InformeDocxData): Promise<void> {
     sections: [{
       properties: { page: { margin: { top: 1700, bottom: 1000, left: 1000, right: 1000 } } },
       headers: { default: buildHeader(headerLogos) },
+      footers: {
+        default: new Footer({
+          children: [new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun({ children: ['Página ', PageNumber.CURRENT, ' de ', PageNumber.TOTAL_PAGES], size: 16, color: '94A3B8' })],
+          })],
+        }),
+      },
       children,
     }],
   });

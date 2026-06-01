@@ -220,15 +220,6 @@ export default function InformePage() {
             </tbody>
           </table>
 
-          <h3 className={s.h3}>Participantes (relativos a la última versión del documento)</h3>
-          <table className={s.propsTable}>
-            <tbody>
-              <tr><td>Elaborado por</td><td>{DOC_PROPS.elaboradoPor}</td></tr>
-              <tr><td>Revisado por</td><td>{DOC_PROPS.revisadoPor}</td></tr>
-              <tr><td>Aprobado por</td><td>{DOC_PROPS.aprobadoPor}</td></tr>
-            </tbody>
-          </table>
-
           <h3 className={s.h3}>Historial de revisiones</h3>
           <table className={s.propsTable}>
             <thead>
@@ -414,21 +405,6 @@ export default function InformePage() {
               )}
             </>
           )}
-
-          {/* Firma */}
-          <div className={s.firmaGrid}>
-            {[
-              ['Elaborado por', DOC_PROPS.elaboradoPor],
-              ['Revisado por', DOC_PROPS.revisadoPor],
-              ['Aprobado por', DOC_PROPS.aprobadoPor],
-            ].map(([rol, ent]) => (
-              <div key={rol} className={s.firmaCol}>
-                <div className={s.firmaLine} />
-                <div className={s.firmaName}>{rol}</div>
-                <div className={s.firmaRole}>{ent}</div>
-              </div>
-            ))}
-          </div>
         </div>
 
       </div>
