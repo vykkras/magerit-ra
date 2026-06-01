@@ -196,9 +196,10 @@
 
 /* Índice */
 .indice { font-size: 13px; }
-.indiceL1 { font-weight: 700; color: #1e293b; margin: 8px 0 2px; }
-.indiceL2 { margin-left: 24px; color: #475569; margin-bottom: 2px; }
+.indiceL1 { font-weight: 700; color: #1e293b; margin: 8px 0 2px; display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px dotted #cbd5e1; padding-bottom: 2px; }
+.indiceL2 { margin-left: 24px; color: #475569; margin-bottom: 2px; display: flex; justify-content: space-between; gap: 12px; }
 .indiceNum { display: inline-block; min-width: 28px; color: #94a3b8; font-weight: 700; }
+.indicePage { color: #64748b; font-variant-numeric: tabular-nums; flex-shrink: 0; }
 
 /* Tabla de datos (riesgos) */
 .dataTable {

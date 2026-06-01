@@ -21,6 +21,9 @@ import {
 } from '../../data/informe.data';
 import s from './InformePage.module.css';
 
+// Páginas de marcador del índice (orientativas; en el .docx también son marcador)
+const TOC_PAGE: Record<string, string> = { '1': '4', '2': '5', '3': '6', '4': '7' };
+
 function fmtDate(iso: string): string {
   if (!iso) return '—';
   const [y, m, d] = iso.split('-');
@@ -240,13 +243,22 @@ export default function InformePage() {
           <div className={s.indice}>
             {INDICE.map(item => (
               <div key={item.n}>
-                <div className={s.indiceL1}><span className={s.indiceNum}>{item.n}.</span> {item.t}</div>
+                <div className={s.indiceL1}>
+                  <span><span className={s.indiceNum}>{item.n}.</span> {item.t}</span>
+                  <span className={s.indicePage}>{TOC_PAGE[item.n] ?? ''}</span>
+                </div>
                 {item.sub.map(sub => (
-                  <div key={sub.n} className={s.indiceL2}><span className={s.indiceNum}>{sub.n}</span> {sub.t}</div>
+                  <div key={sub.n} className={s.indiceL2}>
+                    <span><span className={s.indiceNum}>{sub.n}</span> {sub.t}</span>
+                    <span className={s.indicePage}>{TOC_PAGE[item.n] ?? ''}</span>
+                  </div>
                 ))}
               </div>
             ))}
           </div>
+          <p className={`${s.p} no-print`} style={{ fontSize: 12, color: 'var(--ink-faint, #94a3b8)', marginTop: 8 }}>
+            Los números de página del índice son orientativos; en el .docx aparecen como marcador y deben ajustarse al contenido final.
+          </p>
         </div>
 
         {/* ── 1. Introducción ─────────────────────────────────────────────── */}

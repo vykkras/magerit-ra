@@ -6,11 +6,11 @@
 import {
   Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
   Table, TableRow, TableCell, WidthType, BorderStyle, ImageRun, Header,
-  VerticalAlign, ShadingType, PageBreak, Footer, PageNumber, TableOfContents,
+  VerticalAlign, ShadingType, PageBreak, Footer, PageNumber, TabStopType, LeaderType,
 } from 'docx';
 import {
   DOC_PROPS, DOCUMENTOS_REFERENCIA, TERMINOS_DEFINICIONES,
-  METODOLOGIA_PARRAFOS, VIGENCIA_PARRAFOS,
+  METODOLOGIA_PARRAFOS, VIGENCIA_PARRAFOS, INDICE,
 } from '../data/informe.data';
 import { ZONE_FILL, zoneFromPI, type ZoneLevel } from '../data/riskScale';
 
@@ -85,6 +85,16 @@ function frontH2(text: string): Paragraph {
 
 function bullet(text: string): Paragraph {
   return new Paragraph({ text, bullet: { level: 0 }, spacing: { after: 80 }, alignment: AlignmentType.JUSTIFIED });
+}
+
+// Línea de índice con puntos guía y número de página a la derecha
+function indexLine(label: string, page: string, bold: boolean): Paragraph {
+  return new Paragraph({
+    tabStops: [{ type: TabStopType.RIGHT, position: 9600, leader: LeaderType.DOTS }],
+    indent: bold ? undefined : { left: 360 },
+    spacing: { after: bold ? 60 : 40 },
+    children: [txt(label, { bold }), new TextRun({ text: `\t${page}`, bold })],
+  });
 }
 
 const noBorders = {
@@ -299,9 +309,13 @@ export async function downloadInformeDocx(d: InformeDocxData): Promise<void> {
   VIGENCIA_PARRAFOS.forEach(p => children.push(para(p)));
   children.push(pageBreak());
 
-  // Índice (página 3) — Tabla de Contenido real de Word (páginas según paginación)
+  // Índice (página 3) — números de página de marcador (ajustables)
   children.push(frontH1('Índice'));
-  children.push(new TableOfContents('Índice', { hyperlink: true, headingStyleRange: '1-2' }));
+  const tocPage: Record<string, string> = { '1': '4', '2': '5', '3': '6', '4': '7' };
+  INDICE.forEach(item => {
+    children.push(indexLine(`${item.n}.  ${item.t}`, tocPage[item.n] ?? '', true));
+    item.sub.forEach(sub => children.push(indexLine(`${sub.n}  ${sub.t}`, tocPage[item.n] ?? '', false)));
+  });
   children.push(pageBreak());
 
   // 1. Introducción (página 4 en adelante)
@@ -359,7 +373,6 @@ export async function downloadInformeDocx(d: InformeDocxData): Promise<void> {
   }
 
   const doc = new Document({
-    features: { updateFields: true },
     numbering: {
       config: [{
         reference: 'acciones',
