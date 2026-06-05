@@ -11,6 +11,7 @@ import HomePage from './components/home/HomePage';
 import InfoGeneral from './components/fase1/InfoGeneral';
 import CuestionarioPreliminar from './components/fase1/CuestionarioPreliminar';
 import CategoriesPage from './components/categories/CategoriesPage';
+import MetodologiaPage from './components/metodologia/MetodologiaPage';
 import PendingPage from './components/common/PendingPage';
 import ResponsibilityMatrixPage from './components/tprm/ResponsibilityMatrixPage';
 import RiskAnalysisPage from './components/grc/RiskAnalysisPage';
@@ -22,6 +23,7 @@ import InformePage from './components/grc/InformePage';
 
 type PageId =
   | 'home'
+  | 'metodologia'
   | 'solicitud'
   | 'preliminar'
   | 'avanzado'
@@ -47,6 +49,7 @@ interface NavSection {
 }
 
 const NAV_PRE: NavItem = { id: 'solicitud', label: 'Información General', pending: false };
+const NAV_DOC: NavItem = { id: 'metodologia', label: 'Metodología', pending: false };
 
 const NAV: NavSection[] = [
   {
@@ -78,7 +81,7 @@ const NAV: NavSection[] = [
   },
 ];
 
-const ALL_ITEMS: NavItem[] = [NAV_PRE, ...NAV.flatMap(sec => sec.items)];
+const ALL_ITEMS: NavItem[] = [NAV_PRE, NAV_DOC, ...NAV.flatMap(sec => sec.items)];
 
 // ── Pending page info ─────────────────────────────────────────────────────────
 
@@ -247,7 +250,8 @@ export default function App() {
 
   function renderContent() {
     switch (page) {
-      case 'home':        return <HomePage onStart={() => setPage('solicitud')} onReopen={reopenEvaluation} />;
+      case 'home':        return <HomePage onStart={() => setPage('solicitud')} onReopen={reopenEvaluation} onOpenMethodology={() => setPage('metodologia')} />;
+      case 'metodologia': return <MetodologiaPage />;
       case 'solicitud':   return <InfoGeneral />;
       case 'preliminar':  return <CuestionarioPreliminar />;
       case 'matriz_responsabilidad': return <ResponsibilityMatrixPage />;
@@ -296,6 +300,11 @@ export default function App() {
               <span className={s.headerCrumbPhase}>Inicio</span>
               <span className={s.headerCrumbSep}>/</span>
             </>
+          ) : page === 'metodologia' ? (
+            <>
+              <span className={s.headerCrumbPhase}>Documentación</span>
+              <span className={s.headerCrumbSep}>/</span>
+            </>
           ) : null}
           {currentItem && (
             <>
@@ -323,6 +332,15 @@ export default function App() {
               </span>
               <span className={s.sidebarLabel}>Información General</span>
               <StatusDot done={done.solicitud} />
+            </button>
+            <button
+              onClick={() => setPage('metodologia')}
+              className={`${s.sidebarItem} ${page === 'metodologia' ? s.sidebarItemActive : ''}`}
+            >
+              <span className={`${s.sidebarNum} ${page === 'metodologia' ? s.sidebarNumActive : ''}`}>
+                📐
+              </span>
+              <span className={s.sidebarLabel}>Metodología</span>
             </button>
           </div>
 

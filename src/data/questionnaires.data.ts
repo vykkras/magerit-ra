@@ -8,6 +8,13 @@ export interface Question {
   riskRefs: string[];
   safeguardRefs: string[];         // ISO 27001:2022 catalog IDs (iso-X.Y)
   responsibility: QuestionResponsibility;
+  /**
+   * Matriz de Mapeo de Controles (metodología AARR §9-10). Un control (respuesta
+   * "Sí") puede mitigar el impacto y/o la probabilidad de las amenazas asociadas.
+   * Si no se especifican, se derivan de la semántica de la pregunta (ver enrichQuestion).
+   */
+  mitigaImpacto?: boolean;
+  mitigaProbabilidad?: boolean;
 }
 
 export interface CategoryQuestionnaire {
@@ -22,7 +29,47 @@ export const DOMAIN_LABELS: Record<QuestionDomain, string> = {
   tecnologico:  'Tecnológico',
 };
 
-export const CATEGORY_QUESTIONNAIRES: Record<string, Question[]> = {
+// ── Clasificación de mitigación (Matriz de Mapeo de Controles, AARR §9-10) ──────
+// Controles que reducen la CONSECUENCIA una vez materializada la amenaza.
+const IMPACT_KEYWORDS = [
+  'cifrad', 'cifra', 'backup', 'copias de seguridad', 'respaldo', 'recuperaci',
+  'continuidad', 'segregaci', 'eliminaci', 'redundancia', 'alta disponibilidad',
+  'disponibilidad', 'privacidad', 'protección de datos', 'protege la información',
+  'protección y eliminación', 'exportación o recuperación',
+];
+// Controles que reducen la PROBABILIDAD de que la amenaza se materialice.
+const PROB_KEYWORDS = [
+  'autenticaci', 'mfa', 'contraseñ', 'sso', 'privilegi', 'acceso', 'permiso',
+  'mínimo privilegio', 'vulnerabilidad', 'actualiza', 'parche', 'configuraciones seguras',
+  'monitoriz', 'registr', 'log', 'eventos', 'trazabilidad', 'auditor', 'formaci',
+  'concienciaci', 'incidente', 'malware', 'anómal', 'intrusión', 'dos', 'ddos',
+  'política', 'sistema de gestión', 'gestión de seguridad', 'responsabilidad', 'roles',
+  'evaluaci', 'riesgos', 'pruebas de seguridad', 'gestión de cambios', 'supervisión',
+  'verificaci', 'confidencialidad', 'ciclo de vida',
+];
+
+function matchesAny(text: string, keywords: string[]): boolean {
+  const t = text.toLowerCase();
+  return keywords.some(k => t.includes(k));
+}
+
+/** Rellena mitigaImpacto/mitigaProbabilidad si no están definidos explícitamente. */
+function enrichQuestion(q: Question): Question {
+  let mitigaImpacto      = q.mitigaImpacto;
+  let mitigaProbabilidad = q.mitigaProbabilidad;
+  if (mitigaImpacto === undefined && mitigaProbabilidad === undefined) {
+    mitigaImpacto      = matchesAny(q.text, IMPACT_KEYWORDS);
+    mitigaProbabilidad = matchesAny(q.text, PROB_KEYWORDS);
+    // Si no encaja en ninguna categoría, se asume que mitiga ambas (conservador).
+    if (!mitigaImpacto && !mitigaProbabilidad) {
+      mitigaImpacto = true;
+      mitigaProbabilidad = true;
+    }
+  }
+  return { ...q, mitigaImpacto: !!mitigaImpacto, mitigaProbabilidad: !!mitigaProbabilidad };
+}
+
+const RAW_QUESTIONNAIRES: Record<string, Question[]> = {
 
   // ── Adquisición IT de Bajo Impacto ──────────────────────────────────────────
   'low-impact-it': [
@@ -121,3 +168,8 @@ export const CATEGORY_QUESTIONNAIRES: Record<string, Question[]> = {
     { id: 'io-15', domain: 'tecnologico',  text: '¿La solución garantiza disponibilidad y continuidad de servicios externalizados críticos?',                               riskRefs: ['I.8','A.24'],              safeguardRefs: ['iso-5.30','iso-8.14'],                  responsibility: 'proveedor' },
   ],
 };
+
+// Cuestionarios enriquecidos con la mitigación impacto/probabilidad por pregunta.
+export const CATEGORY_QUESTIONNAIRES: Record<string, Question[]> = Object.fromEntries(
+  Object.entries(RAW_QUESTIONNAIRES).map(([cat, qs]) => [cat, qs.map(enrichQuestion)])
+);

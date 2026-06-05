@@ -284,12 +284,16 @@ function computeRiskStatus(
   categoryAnswers: Record<string, Answer>
 ) {
   const covering = questions.filter(q => q.riskRefs.includes(threatCode));
-  if (covering.length === 0) return { yesCount: 0, noCount: 0, naCount: 0, total: 0, isExcluded: false };
-  const yesCount = covering.filter(q => categoryAnswers[q.id] === 'yes').length;
+  if (covering.length === 0) return { yesCount: 0, yesImpact: 0, yesProb: 0, noCount: 0, naCount: 0, total: 0, isExcluded: false };
+  const yes      = covering.filter(q => categoryAnswers[q.id] === 'yes');
+  const yesCount = yes.length;
+  // Matriz de mapeo: cada "Sí" mitiga impacto y/o probabilidad de la amenaza.
+  const yesImpact = yes.filter(q => q.mitigaImpacto).length;
+  const yesProb   = yes.filter(q => q.mitigaProbabilidad).length;
   const noCount  = covering.filter(q => categoryAnswers[q.id] === 'no').length;
   const naCount  = covering.filter(q => categoryAnswers[q.id] === 'na').length;
   const isExcluded = naCount > 0 && naCount === covering.length;
-  return { yesCount, noCount, naCount, total: covering.length, isExcluded };
+  return { yesCount, yesImpact, yesProb, noCount, naCount, total: covering.length, isExcluded };
 }
 
 function ScenarioTable({
@@ -304,21 +308,26 @@ function ScenarioTable({
   const { scenarios, updateRow, addRow, removeRow } = useRiskScenarioStore();
   const rows = scenarios[category.id] ?? [];
 
-  // Enrich each row with computed residual impact + question coverage info
+  // Enrich each row with computed residual impact + probability + coverage info
   const enriched = rows.map(row => {
     const status = computeRiskStatus(row.threatCode, questions, categoryAnswers);
-    const { yesCount, noCount, naCount, total, isExcluded } = status;
-    const imp = row.inherentImpact;
+    const { yesCount, yesImpact, yesProb, noCount, naCount, total, isExcluded } = status;
+    const imp  = row.inherentImpact;
+    const prob = row.probability;
+    // Cada "Sí" que mitiga impacto reduce el impacto; el que mitiga probabilidad, la probabilidad.
     const residual: 1|2|3|4|null = isExcluded
       ? null
-      : imp !== null ? (Math.max(1, imp - yesCount) as 1|2|3|4) : null;
-    return { ...row, isExcluded, residual, yesCount, noCount, naCount, total };
+      : imp !== null ? (Math.max(1, imp - yesImpact) as 1|2|3|4) : null;
+    const residualProb: 1|2|3|4|null = isExcluded
+      ? null
+      : prob !== null ? (Math.max(1, prob - yesProb) as 1|2|3|4) : null;
+    return { ...row, isExcluded, residual, residualProb, yesCount, yesImpact, yesProb, noCount, naCount, total };
   });
 
-  // Risk totals (probability × impact)
+  // Risk totals (probability × impact, inherente y residual)
   const countable = enriched.filter(r => !r.isExcluded && r.probability !== null && r.inherentImpact !== null);
   const totalInherent = countable.reduce((sum, r) => sum + r.probability! * r.inherentImpact!, 0);
-  const totalResidual = countable.reduce((sum, r) => sum + r.probability! * (r.residual ?? r.inherentImpact!), 0);
+  const totalResidual = countable.reduce((sum, r) => sum + (r.residualProb ?? r.probability!) * (r.residual ?? r.inherentImpact!), 0);
   const excludedCount = enriched.filter(r => r.isExcluded).length;
   const reduction     = totalInherent > 0 ? Math.round((1 - totalResidual / totalInherent) * 100) : 0;
 
@@ -357,11 +366,12 @@ function ScenarioTable({
         <table className={s.table}>
           <thead>
             <tr>
-              <th style={{ width: '13%' }}>Riesgo ID</th>
-              <th style={{ width: '15%' }}>Probabilidad (1–4)</th>
-              <th style={{ width: '15%' }}>Impacto inherente (1–4)</th>
-              <th style={{ width: '29%' }}>Salvaguarda aplicable</th>
-              <th style={{ width: '13%' }}>Impacto residual</th>
+              <th style={{ width: '12%' }}>Riesgo ID</th>
+              <th style={{ width: '13%' }}>Probabilidad (1–4)</th>
+              <th style={{ width: '13%' }}>Impacto inherente (1–4)</th>
+              <th style={{ width: '24%' }}>Salvaguarda aplicable</th>
+              <th style={{ width: '11%' }}>Prob. residual</th>
+              <th style={{ width: '14%' }}>Impacto residual</th>
               <th style={{ width: '3%' }} />
             </tr>
           </thead>
@@ -397,6 +407,19 @@ function ScenarioTable({
                       <option key={sc} value={sc}>{sc} · {(sg as { name: string }).name}</option>
                     ))}
                   </select>
+                </td>
+                <td>
+                  <div className={s.residualCell}>
+                    {row.isExcluded ? (
+                      <span className={s.residualNa}>N/A</span>
+                    ) : row.residualProb != null ? (
+                      <span className={`${s.residualBadge} ${RESIDUAL_CLS[row.residualProb - 1]}`}>
+                        {row.residualProb}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#cbd5e1' }}>—</span>
+                    )}
+                  </div>
                 </td>
                 <td>
                   <div className={s.residualCell}>
@@ -808,6 +831,14 @@ export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?
                           </span>
                         );
                       })()}
+                      <div style={{ display: 'flex', gap: 3, justifyContent: 'center', marginTop: 4 }}>
+                        {q.mitigaImpacto && (
+                          <span title="Mitiga impacto" style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: '#fef3c7', color: '#92400e' }}>I↓</span>
+                        )}
+                        {q.mitigaProbabilidad && (
+                          <span title="Mitiga probabilidad" style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: '#dbeafe', color: '#1e40af' }}>P↓</span>
+                        )}
+                      </div>
                     </td>
 
                     <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>

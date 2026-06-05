@@ -42,7 +42,7 @@ function CompletedRow({ ev, onRemove, onReopen }: { ev: CompletedEvaluation; onR
   );
 }
 
-export default function HomePage({ onStart, onReopen }: { onStart: () => void; onReopen: (ev: CompletedEvaluation) => void }) {
+export default function HomePage({ onStart, onReopen, onOpenMethodology }: { onStart: () => void; onReopen: (ev: CompletedEvaluation) => void; onOpenMethodology?: () => void }) {
   const { categories }          = useCategoryStore();
   const { answers }             = useQuestionnaireStore();
   const { evaluations, remove } = useCompletedStore();
@@ -88,12 +88,22 @@ export default function HomePage({ onStart, onReopen }: { onStart: () => void; o
             Plataforma interna de evaluación de soluciones ICT y proveedores tecnológicos,
             basada en MAGERIT v3.
           </p>
-          <button className={s.ctaBtn} onClick={onStart}>
-            {hasSession ? 'Continuar proceso' : 'Iniciar proceso de evaluación'}
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button className={s.ctaBtn} onClick={onStart}>
+              {hasSession ? 'Continuar proceso' : 'Iniciar proceso de evaluación'}
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            {onOpenMethodology && (
+              <button
+                onClick={onOpenMethodology}
+                style={{ background: 'transparent', color: '#d6e4f2', border: '1px solid rgba(255,255,255,0.35)', borderRadius: 10, padding: '11px 18px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >
+                📐 Ver metodología
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
