@@ -8,13 +8,13 @@ export default function TprmResultsPage() {
 
   const color =
     score >= 80 ? '#16a34a' :
-    score >= 60 ? '#d97706' :
-                  '#dc2626';
+    score < 80 ? '#dc2626';
+                  
 
   const label =
     score >= 80 ? 'Satisfactorio' :
-    score >= 60 ? 'Aceptable con condiciones' :
-                  'No satisfactorio';
+    score < 80 ?  'No satisfactorio';
+                 
 
   return (
     <div className={s.page}>
