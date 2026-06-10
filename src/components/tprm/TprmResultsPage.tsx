@@ -74,13 +74,10 @@ export default function TprmResultsPage() {
             <span className={s.legendDot} style={{ background: '#16a34a' }} />
             <span>≥ 80 — Satisfactorio</span>
           </div>
-          <div className={s.legendItem}>
-            <span className={s.legendDot} style={{ background: '#d97706' }} />
-            <span>60 – 79 — Aceptable con condiciones</span>
-          </div>
+
           <div className={s.legendItem}>
             <span className={s.legendDot} style={{ background: '#dc2626' }} />
-            <span>{'< 60 — No satisfactorio'}</span>
+            <span>{'< 80 — No satisfactorio'}</span>
           </div>
         </div>
       </div>
