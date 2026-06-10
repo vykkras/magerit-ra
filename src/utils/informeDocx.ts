@@ -90,7 +90,7 @@ function bullet(text: string): Paragraph {
 // Línea de índice con puntos guía y número de página a la derecha
 function indexLine(label: string, page: string, bold: boolean): Paragraph {
   return new Paragraph({
-    tabStops: [{ type: TabStopType.RIGHT, position: 9600, leader: LeaderType.DOTS }],
+    tabStops: [{ type: TabStopType.RIGHT, position: 9600, leader: LeaderType.DOT }],
     indent: bold ? undefined : { left: 360 },
     spacing: { after: bold ? 60 : 40 },
     children: [txt(label, { bold }), new TextRun({ text: `\t${page}`, bold })],
