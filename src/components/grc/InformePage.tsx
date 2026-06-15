@@ -5,9 +5,9 @@ import { useCategoryStore } from '../../store/categoryStore';
 import { useManualRiskStore } from '../../store/manualRiskStore';
 import { CATEGORY_QUESTIONNAIRES } from '../../data/questionnaires.data';
 import {
-  computeRiskSummary, PROB_LABELS, IMP_LABELS,
-  ZONE_BG, ZONE_COLOR, zoneFromPI,
-} from '../../data/riskScale';
+  computeRiskSummary, PROB_LEVELS, LEVEL_NAMES,
+  ZONE_META, zoneOfCell,
+} from '../../data/aarrScale';
 import { downloadInformeDocx } from '../../utils/informeDocx';
 import {
   DOC_PROPS,
@@ -57,7 +57,7 @@ export default function InformePage() {
     return qs.filter(q => catA[q.id] === 'no').map(q => q.text);
   }, [catId, answers]);
 
-  const riesgosATratar = summary.zoneCounts.alto + summary.zoneCounts.muy_alto;
+  const riesgosATratar = summary.riesgosATratar;
 
   // Riesgos ordenados de mayor a menor para tabla y amenazas principales
   const risksSorted = useMemo(
@@ -66,7 +66,7 @@ export default function InformePage() {
   );
 
   const amenazasPrincipales = useMemo(() => {
-    const relevant = risksSorted.filter(r => r.zoneLevel === 'alto' || r.zoneLevel === 'muy_alto');
+    const relevant = risksSorted.filter(r => r.zone === 'Z1' || r.zone === 'Z2');
     return relevant.length > 0 ? relevant : risksSorted.slice(0, 3);
   }, [risksSorted]);
 
@@ -112,11 +112,11 @@ export default function InformePage() {
         amenaza: r.amenaza || '—',
         probLabel: r.probLabel,
         zoneLabel: r.zoneLabel,
-        zoneLevel: r.zoneLevel,
+        zoneLevel: r.zone,
       })),
-      mapCounts: summary.mapCounts,
-      probLabels: PROB_LABELS,
-      impLabels: IMP_LABELS,
+      mapCounts: summary.grid,
+      probLabels: PROB_LEVELS.map(l => l?.name ?? ''),
+      impLabels: [...LEVEL_NAMES],
       amenazas: amenazasPrincipales.map(r => ({
         amenaza: r.amenaza || '—', zoneLabel: r.zoneLabel,
       })),
@@ -327,7 +327,7 @@ export default function InformePage() {
                     <td>{r.amenaza || '—'}</td>
                     <td>{r.probLabel}</td>
                     <td>
-                      <span className={s.zoneBadge} style={{ background: ZONE_BG[r.zoneLevel], color: ZONE_COLOR[r.zoneLevel] }}>
+                      <span className={s.zoneBadge} style={{ background: ZONE_META[r.zone].bg, color: ZONE_META[r.zone].color }}>
                         {r.zoneLabel}
                       </span>
                     </td>
@@ -344,19 +344,19 @@ export default function InformePage() {
               <thead>
                 <tr>
                   <th className={s.mapCorner}>Impacto residual / Probabilidad residual</th>
-                  {[1, 2, 3, 4, 5].map(p => <th key={p} className={s.mapAxis}>{PROB_LABELS[p]}</th>)}
+                  {[1, 2, 3, 4, 5].map(p => <th key={p} className={s.mapAxis}>{PROB_LEVELS[p]!.name}</th>)}
                   <th className={s.mapTotal}>Total</th>
                 </tr>
               </thead>
               <tbody>
                 {[5, 4, 3, 2, 1].map(imp => {
-                  const rowCounts = summary.mapCounts[imp - 1];
+                  const rowCounts = summary.grid[imp - 1];
                   const rowTotal = rowCounts.reduce((a, b) => a + b, 0);
                   return (
                     <tr key={imp}>
-                      <td className={s.mapAxis}>{IMP_LABELS[imp]}</td>
+                      <td className={s.mapAxis}>{LEVEL_NAMES[imp]}</td>
                       {[1, 2, 3, 4, 5].map(p => (
-                        <td key={p} className={s.mapCell} style={{ background: ZONE_BG[zoneFromPI(p, imp)] }}>
+                        <td key={p} className={s.mapCell} style={{ background: ZONE_META[zoneOfCell(p, imp)].bg }}>
                           {rowCounts[p - 1] > 0 ? rowCounts[p - 1] : ''}
                         </td>
                       ))}
@@ -367,7 +367,7 @@ export default function InformePage() {
                 <tr>
                   <td className={s.mapTotal}>Total</td>
                   {[1, 2, 3, 4, 5].map(p => {
-                    const colTotal = [0, 1, 2, 3, 4].reduce((a, imp) => a + summary.mapCounts[imp][p - 1], 0);
+                    const colTotal = [0, 1, 2, 3, 4].reduce((a, imp) => a + summary.grid[imp][p - 1], 0);
                     return <td key={p} className={`${s.mapCell} ${s.mapTotal}`}>{colTotal}</td>;
                   })}
                   <td className={`${s.mapCell} ${s.mapTotal}`}>{totalRiesgos}</td>

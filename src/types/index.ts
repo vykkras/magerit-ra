@@ -75,3 +75,13 @@ export type {
   RiskSafeguardMapping,
   MitigationEvaluation,
 } from './mapping.types';
+
+// Controles y zonas (metodología corporativa BPO CC v7.3)
+export type {
+  Zone,
+  ControlTipo,
+  ControlImplementacion,
+  ControlGrado,
+  ControlFrecuencia,
+  AppliedControl,
+} from './control.types';

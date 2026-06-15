@@ -12,7 +12,7 @@ import {
   DOC_PROPS, DOCUMENTOS_REFERENCIA, TERMINOS_DEFINICIONES,
   METODOLOGIA_PARRAFOS, VIGENCIA_PARRAFOS, INDICE,
 } from '../data/informe.data';
-import { ZONE_FILL, zoneFromPI, type ZoneLevel } from '../data/riskScale';
+import { ZONE_META, zoneOfCell, type Zone } from '../data/aarrScale';
 
 const NAVY = '1E3A5F';
 const GREY = '64748B';
@@ -20,7 +20,7 @@ const LIGHT = 'F1F5F9';
 const BORDER = 'CBD5E1';
 
 export interface InformeDocxRisk {
-  activo: string; amenaza: string; probLabel: string; zoneLabel: string; zoneLevel: ZoneLevel;
+  activo: string; amenaza: string; probLabel: string; zoneLabel: string; zoneLevel: Zone;
 }
 
 export interface InformeDocxData {
@@ -223,7 +223,7 @@ function riskTable(d: InformeDocxData): Table {
           cell({ text: r.activo }),
           cell({ text: r.amenaza }),
           cell({ text: r.probLabel }),
-          cell({ text: r.zoneLabel, bold: true, fill: ZONE_FILL[r.zoneLevel] }),
+          cell({ text: r.zoneLabel, bold: true, fill: ZONE_META[r.zoneLevel].fill }),
         ],
       }));
   return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [head, ...body] });
@@ -247,7 +247,7 @@ function riskMap(d: InformeDocxData): Table {
         cell({ text: d.impLabels[imp], bold: true, fill: 'E2E8F0', size: 16 }),
         ...LEVELS.map(p => cell({
           text: counts[p - 1] > 0 ? String(counts[p - 1]) : '',
-          bold: true, align: AlignmentType.CENTER, fill: ZONE_FILL[zoneFromPI(p, imp)],
+          bold: true, align: AlignmentType.CENTER, fill: ZONE_META[zoneOfCell(p, imp)].fill,
         })),
         cell({ text: String(total), bold: true, color: NAVY, fill: LIGHT, align: AlignmentType.CENTER }),
       ],

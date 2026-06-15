@@ -103,6 +103,10 @@
 .stepTitle { font-size: 13.5px; font-weight: 700; color: #0f172a; }
 .stepText { font-size: 12.5px; color: #64748b; line-height: 1.5; margin-top: 1px; }
 
+/* ── Listas ── */
+.ul { margin: 8px 0 0; padding-left: 20px; }
+.li { font-size: 13px; color: #334155; line-height: 1.6; margin-bottom: 4px; }
+
 /* ── Mitigation legend ── */
 .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
 .legendItem { display: flex; gap: 10px; align-items: flex-start; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; flex: 1; min-width: 260px; }
@@ -145,8 +149,19 @@
 .levels { display: flex; flex-direction: column; gap: 8px; }
 .level { display: flex; align-items: center; gap: 12px; }
 .levelDot { width: 16px; height: 16px; border-radius: 5px; border: 1px solid; flex-shrink: 0; }
-.levelName { width: 90px; font-size: 13px; font-weight: 700; color: #0f172a; }
+.levelName { width: 200px; font-size: 13px; font-weight: 700; color: #0f172a; }
 .levelRange { font-size: 12.5px; color: #64748b; font-family: ui-monospace, Menlo, monospace; }
+
+/* ── Catálogo de controles ── */
+.ctrlFamily { margin-top: 18px; }
+.ctrlFamilyName {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13.5px; font-weight: 800; color: #1e3a5f; margin-bottom: 2px;
+}
+.ctrlFamilyCount {
+  font-size: 11px; font-weight: 700; color: #64748b;
+  background: #f1f5f9; border-radius: 999px; padding: 2px 9px;
+}
 
 /* ── Callout ── */
 .callout {
