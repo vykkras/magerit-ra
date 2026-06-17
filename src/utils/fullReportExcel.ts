@@ -26,6 +26,7 @@ import {
 } from '../data/questionnaires.data';
 import { useRiskControlStore, effectiveControls } from '../store/riskControlStore';
 import { useQuestionnaireStore, type Answer } from '../store/questionnaireStore';
+import { useSolicitudStore } from '../store/solicitudStore';
 import { PROB_LEVELS, DEGRAD_LEVELS } from '../data/aarrScale';
 
 // ── Estilos ──────────────────────────────────────────────────────────────────
@@ -84,10 +85,15 @@ function safeSheet(name: string) {
 export async function exportFullReport() {
   const { overrides, specificOverrides } = useRiskControlStore.getState();
   const qs = useQuestionnaireStore.getState();
+  const sol = useSolicitudStore.getState();
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'M.A.I.N.S. · MAGERIT';
   const fecha = new Date().toLocaleDateString('es-ES');
+
+  // La hoja General va primera (se rellena al final, cuando tenemos catMeta).
+  const wsGeneral = wb.addWorksheet('General');
+  const catMeta: { id: string; name: string; sheetName: string; firstAns: number; lastAns: number; total: number }[] = [];
 
   // Helper: pregunta efectiva (texto/refs/responsabilidad/respuesta) de una Question
   const effText = (cat: string, q: Question) => qs.customQuestions[cat]?.[q.id] ?? q.text;
@@ -105,6 +111,7 @@ export async function exportFullReport() {
     ws.addRow([]);
     headerRow(ws, ['#', 'Hoja', 'Contenido']);
     const items: [string, string][] = [
+      ['General', 'Datos generales + categoría (desplegable). Dispara cálculos y la gráfica de cumplimiento.'],
       ['Riesgos', 'Catálogo de amenazas MAGERIT v3 (degradación y probabilidad inherentes).'],
       ['Controles', 'Catálogo de controles / salvaguardas MAGERIT y ENS.'],
       ['Mapeo Riesgo-Control', 'Controles que mitigan cada amenaza (17 grupos temáticos).'],
@@ -277,10 +284,20 @@ export async function exportFullReport() {
     sumRow.getCell(2).font = { bold: true };
     sumRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
     sumRow.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
+
+    catMeta.push({ id: cat, name, sheetName: ws.name, firstAns, lastAns, total: lastAns - firstAns + 1 });
   }
 
   // ── 11. AARR ──
   buildAarrSheet(wb);
+
+  // ── Hoja General (portada + cálculos por categoría seleccionada) ──
+  const selName = catMeta.find(c => c.id === sol.categoriaId)?.name ?? '';
+  buildGeneralSheet(wsGeneral, catMeta, {
+    solicitante: sol.solicitante, departamento: sol.departamento, proveedor: sol.proveedor,
+    solucion: sol.solucion, referenciaPST: sol.referenciaPST, fecha: sol.fechaSolicitud || fecha,
+    categoryName: selName,
+  });
 
   // ── Descarga ──
   const buf  = await wb.xlsx.writeBuffer();
@@ -408,4 +425,106 @@ function buildAarrSheet(wb: ExcelJS.Workbook) {
     row.getCell(1).font = { bold: true, color: { argb: 'FF1E3A5F' } };
     row.alignment = { vertical: 'middle', wrapText: true };
   }
+}
+
+// ── Hoja General — portada con datos + categoría (dispara cálculos y gráfica) ─
+interface GeneralPrefill {
+  solicitante: string; departamento: string; proveedor: string; solucion: string;
+  referenciaPST: string; fecha: string; categoryName: string;
+}
+type CatMeta = { id: string; name: string; sheetName: string; firstAns: number; lastAns: number; total: number };
+
+function qSheet(name: string): string {
+  return `'${name.replace(/'/g, "''")}'`;
+}
+
+function dataBar(ws: ExcelJS.Worksheet, ref: string) {
+  const rule = { type: 'dataBar', cfvo: [{ type: 'num', value: 0 }, { type: 'num', value: 100 }] };
+  ws.addConditionalFormatting({ ref, rules: [rule as unknown as ExcelJS.ConditionalFormattingRule] });
+}
+
+function buildGeneralSheet(ws: ExcelJS.Worksheet, catMeta: CatMeta[], pre: GeneralPrefill) {
+  ws.columns = [{ width: 24 }, { width: 42 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 }];
+  ws.views = [{ showGridLines: false }];
+  titleRow(ws, 'Apreciación del Riesgo · Datos generales', 6);
+  ws.addRow([]);
+
+  // Datos generales (celdas de entrada en amarillo)
+  band(ws, 'Datos generales', 6);
+  const fields: [string, string][] = [
+    ['Solicitante', pre.solicitante],
+    ['Departamento', pre.departamento],
+    ['Proveedor', pre.proveedor],
+    ['Solución / Servicio', pre.solucion],
+    ['Referencia PST', pre.referenciaPST],
+    ['Fecha', pre.fecha],
+  ];
+  for (const [label, val] of fields) {
+    const r = ws.addRow([label, val ?? '']);
+    ws.mergeCells(`B${r.number}:F${r.number}`);
+    r.getCell(1).font = { bold: true, color: { argb: 'FF1E3A5F' } };
+    r.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INPUT_FILL } };
+    r.eachCell(c => { c.border = { bottom: BORDER }; });
+  }
+  // Categoría (desplegable que dispara los cálculos)
+  const catRow = ws.addRow(['Categoría evaluada', pre.categoryName]);
+  ws.mergeCells(`B${catRow.number}:F${catRow.number}`);
+  const catCell = `B${catRow.number}`;
+  catRow.getCell(1).font = { bold: true, color: { argb: 'FF1E3A5F' } };
+  catRow.getCell(2).font = { bold: true };
+  catRow.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE08A' } };
+  catRow.eachCell(c => { c.border = { bottom: BORDER }; });
+  ws.getCell(catCell).dataValidation = {
+    type: 'list', allowBlank: false, formulae: [`"${catMeta.map(c => c.name).join(',')}"`],
+  };
+
+  ws.addRow([]);
+
+  // Gráfica: cumplimiento por categoría (barras de datos)
+  band(ws, 'Cumplimiento por categoría (gráfica)', 6);
+  headerRow(ws, ['Categoría', '% Cumplimiento', 'Sí', 'No', 'Pend.', 'Total']);
+  const helperFirst = ws.rowCount + 1;
+  for (const c of catMeta) {
+    const rng = `${qSheet(c.sheetName)}!B${c.firstAns}:B${c.lastAns}`;
+    const yes = `COUNTIF(${rng},"Si")`;
+    const no = `COUNTIF(${rng},"No")`;
+    const row = ws.addRow([c.name, null, null, null, null, c.total]);
+    const n = row.number;
+    fcell(ws, `B${n}`, `IFERROR(ROUND(${yes}/(${yes}+${no})*100,0),0)`, 0);
+    fcell(ws, `C${n}`, yes, 0);
+    fcell(ws, `D${n}`, no, 0);
+    fcell(ws, `E${n}`, `F${n}-C${n}-D${n}`, c.total);
+    row.getCell(2).numFmt = '0"%"';
+    row.getCell(1).font = { bold: true };
+    for (let i = 2; i <= 6; i++) row.getCell(i).alignment = { horizontal: 'center', vertical: 'middle' };
+    row.eachCell(cc => { cc.border = { bottom: BORDER }; });
+  }
+  const helperLast = ws.rowCount;
+  dataBar(ws, `B${helperFirst}:B${helperLast}`);
+
+  ws.addRow([]);
+
+  // Resultado de la categoría seleccionada (vía VLOOKUP sobre la tabla anterior)
+  band(ws, 'Resultado de la categoría seleccionada', 6);
+  const range = `$A$${helperFirst}:$F$${helperLast}`;
+  const resLines: [string, string, string][] = [
+    ['% Cumplimiento', `IFERROR(VLOOKUP(${catCell},${range},2,FALSE),0)`, '0"%"'],
+    ['Preguntas Sí', `IFERROR(VLOOKUP(${catCell},${range},3,FALSE),0)`, '0'],
+    ['Preguntas No', `IFERROR(VLOOKUP(${catCell},${range},4,FALSE),0)`, '0'],
+    ['Pendientes', `IFERROR(VLOOKUP(${catCell},${range},5,FALSE),0)`, '0'],
+    ['Total preguntas', `IFERROR(VLOOKUP(${catCell},${range},6,FALSE),0)`, '0'],
+  ];
+  let cumplCell = '';
+  for (const [label, formula, fmt] of resLines) {
+    const r = ws.addRow([label, null]);
+    ws.mergeCells(`B${r.number}:F${r.number}`);
+    fcell(ws, `B${r.number}`, formula, 0);
+    r.getCell(1).font = { bold: true, color: { argb: 'FF1E3A5F' } };
+    r.getCell(2).numFmt = fmt;
+    r.getCell(2).font = { bold: true };
+    r.getCell(2).alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+    r.eachCell(c => { c.border = { bottom: BORDER }; });
+    if (label === '% Cumplimiento') cumplCell = `B${r.number}`;
+  }
+  if (cumplCell) dataBar(ws, cumplCell);
 }
