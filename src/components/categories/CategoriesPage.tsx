@@ -5,7 +5,7 @@ import { useCategoryStore } from '../../store/categoryStore';
 import { useQuestionnaireStore, type Answer, type Criticality, type ExtraQuestion } from '../../store/questionnaireStore';
 import { useRiskScenarioStore } from '../../store/riskScenarioStore';
 import { MAGERIT_THREATS } from '../../data/threats.data';
-import { CATALOG_BY_CODE } from '../../data/safeguards.data';
+import { CONTROLES_BY_ID as CATALOG_BY_CODE } from '../../data/controlesCatalog';
 import { CATEGORY_QUESTIONNAIRES, DOMAIN_LABELS, type Question, type QuestionResponsibility } from '../../data/questionnaires.data';
 import { avgMaturity } from '../../data/maturityLevels.data';
 import type { Category } from '../../store/categoryStore';

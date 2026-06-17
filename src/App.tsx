@@ -15,6 +15,7 @@ import MetodologiaPage from './components/metodologia/MetodologiaPage';
 import PendingPage from './components/common/PendingPage';
 import ResponsibilityMatrixPage from './components/tprm/ResponsibilityMatrixPage';
 import RiskAnalysisPage from './components/grc/RiskAnalysisPage';
+import RiskControlMappingPage from './components/mappings/RiskControlMappingPage';
 import TprmResultsPage from './components/tprm/TprmResultsPage';
 import ResultadoPage from './components/grc/ResultadoPage';
 import InformePage from './components/grc/InformePage';
@@ -28,6 +29,7 @@ type PageId =
   | 'preliminar'
   | 'avanzado'
   | 'grc'
+  | 'mapeo_riesgo_control'
   | 'matriz_responsabilidad'
   | 'tprm'
   | 'informe'
@@ -65,8 +67,9 @@ const NAV: NavSection[] = [
     items: [
       { id: 'avanzado', num: 3, label: 'Cuestionario Avanzado',    pending: false },
       { id: 'grc',                    num: 4, label: 'Análisis de Riesgos',             pending: false },
-      { id: 'matriz_responsabilidad', num: 5, label: 'Matriz de Responsabilidades',    pending: false },
-      { id: 'tprm',    num: 6, label: 'Resultados TPRM',       pending: false },
+      { id: 'mapeo_riesgo_control',   num: 5, label: 'Mapeo Riesgo ↔ Control',         pending: false },
+      { id: 'matriz_responsabilidad', num: 6, label: 'Matriz de Responsabilidades',    pending: false },
+      { id: 'tprm',    num: 7, label: 'Resultados TPRM',       pending: false },
     ],
   },
   {
@@ -74,9 +77,9 @@ const NAV: NavSection[] = [
     phase: 'Resultados',
     items: [
       { id: 'resultado',  label: 'Resultado',  pending: false },
-      { id: 'informe', num: 7, label: 'Informe de Evaluación', pending: false },
-      { id: 'despliegue', num: 8, label: 'Solicitud de Despliegue',  pending: true },
-      { id: 'inventario', num: 9, label: 'Inventario de Soluciones', pending: true },
+      { id: 'informe', num: 8, label: 'Informe de Evaluación', pending: false },
+      { id: 'despliegue', num: 9, label: 'Solicitud de Despliegue',  pending: true },
+      { id: 'inventario', num: 10, label: 'Inventario de Soluciones', pending: true },
     ],
   },
 ];
@@ -256,6 +259,7 @@ export default function App() {
       case 'preliminar':  return <CuestionarioPreliminar />;
       case 'matriz_responsabilidad': return <ResponsibilityMatrixPage />;
       case 'grc':       return <RiskAnalysisPage />;
+      case 'mapeo_riesgo_control': return <RiskControlMappingPage />;
       case 'tprm':      return <TprmResultsPage />;
       case 'resultado': return <ResultadoPage />;
       case 'informe':   return <InformePage />;

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { CATEGORY_QUESTIONNAIRES } from '../data/questionnaires.data';
+import { CATEGORY_RISK_CODES } from '../data/riskControlMapping';
 
 export interface RiskEntry {
   threatCode: string;
@@ -13,32 +14,13 @@ export interface Category {
   risks: RiskEntry[];
 }
 
-const BARE_CATEGORIES: { id: string; name: string; risks: string[] }[] = [
-  {
-    id: 'low-impact-it',
-    name: 'Adquisición de IT de bajo impacto',
-    risks: ['I.5','E.1','E.2','E.4','E.20','E.21','E.23','E.25','A.11'],
-  },
-  {
-    id: 'saas',
-    name: 'SaaS',
-    risks: ['I.5','I.8','E.1','E.2','E.4','E.19','E.20','E.24','A.5','A.6','A.11','A.14','A.19','A.24'],
-  },
-  {
-    id: 'saas-ai',
-    name: 'SaaS con IA',
-    risks: ['I.5','I.8','E.1','E.2','E.4','E.7','E.15','E.19','E.20','E.24','A.4','A.5','A.6','A.11','A.14','A.15','A.19','A.24','A.30'],
-  },
-  {
-    id: 'paas-iaas',
-    name: 'PaaS / IaaS',
-    risks: ['I.5','I.6','I.8','E.2','E.3','E.4','E.9','E.18','E.20','E.21','E.24','A.3','A.4','A.5','A.6','A.11','A.14','A.18','A.24'],
-  },
-  {
-    id: 'it-outsourcing',
-    name: 'IT Outsourcing',
-    risks: ['E.1','E.2','E.3','E.7','E.19','E.28','A.5','A.6','A.7','A.11','A.13','A.19','A.28','A.29','A.30'],
-  },
+// Códigos de riesgo por categoría: fuente única en riskControlMapping.
+const BARE_CATEGORIES: { id: keyof typeof CATEGORY_RISK_CODES; name: string }[] = [
+  { id: 'low-impact-it',  name: 'Adquisición de IT de bajo impacto' },
+  { id: 'saas',           name: 'SaaS' },
+  { id: 'saas-ai',        name: 'SaaS con IA' },
+  { id: 'paas-iaas',      name: 'PaaS / IaaS' },
+  { id: 'it-outsourcing', name: 'IT Outsourcing' },
 ];
 
 function buildInitialCategories(): Category[] {
@@ -57,7 +39,7 @@ function buildInitialCategories(): Category[] {
     return {
       id: cat.id,
       name: cat.name,
-      risks: cat.risks.map(threatCode => ({
+      risks: (CATEGORY_RISK_CODES[cat.id] ?? []).map(threatCode => ({
         threatCode,
         safeguardCodes: [...(riskToSafeguards.get(threatCode) ?? [])],
       })),
@@ -125,7 +107,7 @@ export const useCategoryStore = create<CategoryStore>()(
         }));
       },
     }),
-    { name: 'magerit-categories-v3' }
+    { name: 'magerit-categories-v7' }
   )
 );
 

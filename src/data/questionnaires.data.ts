@@ -1,20 +1,30 @@
+/**
+ * Cuestionarios por categoría de solución — definición corporativa curada.
+ *
+ * Cada categoría tiene su propio cuestionario (pregunta cerrada Sí/No), con las
+ * amenazas MAGERIT que cubre y los controles asociados. El usuario puede editar el
+ * texto, las amenazas y los controles, y añadir preguntas (ver CategoriesPage).
+ * La descarga es sólo Pregunta + Respuesta (Sí/No/N/A).
+ */
+
+import type { ControlCatalogTipo, ControlDominio } from './controlesCatalog';
+
 export type QuestionResponsibility = 'proveedor' | 'cliente' | 'ambos';
-export type QuestionDomain = 'organizativo' | 'personas' | 'fisico' | 'tecnologico';
+export type QuestionDomain = ControlDominio;
 
 export interface Question {
   id: string;
   text: string;
   domain: QuestionDomain;
   riskRefs: string[];
-  safeguardRefs: string[];         // ISO 27001:2022 catalog IDs (iso-X.Y)
+  /** Controles asociados (nombre). */
+  safeguardRefs: string[];
   responsibility: QuestionResponsibility;
-  /**
-   * Matriz de Mapeo de Controles (metodología AARR §9-10). Un control (respuesta
-   * "Sí") puede mitigar el impacto y/o la probabilidad de las amenazas asociadas.
-   * Si no se especifican, se derivan de la semántica de la pregunta (ver enrichQuestion).
-   */
-  mitigaImpacto?: boolean;
-  mitigaProbabilidad?: boolean;
+  controlId: string;
+  familia: string;
+  tipo: ControlCatalogTipo;
+  mitigaImpacto: boolean;
+  mitigaProbabilidad: boolean;
 }
 
 export interface CategoryQuestionnaire {
@@ -29,147 +39,127 @@ export const DOMAIN_LABELS: Record<QuestionDomain, string> = {
   tecnologico:  'Tecnológico',
 };
 
-// ── Clasificación de mitigación (Matriz de Mapeo de Controles, AARR §9-10) ──────
-// Controles que reducen la CONSECUENCIA una vez materializada la amenaza.
-const IMPACT_KEYWORDS = [
-  'cifrad', 'cifra', 'backup', 'copias de seguridad', 'respaldo', 'recuperaci',
-  'continuidad', 'segregaci', 'eliminaci', 'redundancia', 'alta disponibilidad',
-  'disponibilidad', 'privacidad', 'protección de datos', 'protege la información',
-  'protección y eliminación', 'exportación o recuperación',
-];
-// Controles que reducen la PROBABILIDAD de que la amenaza se materialice.
-const PROB_KEYWORDS = [
-  'autenticaci', 'mfa', 'contraseñ', 'sso', 'privilegi', 'acceso', 'permiso',
-  'mínimo privilegio', 'vulnerabilidad', 'actualiza', 'parche', 'configuraciones seguras',
-  'monitoriz', 'registr', 'log', 'eventos', 'trazabilidad', 'auditor', 'formaci',
-  'concienciaci', 'incidente', 'malware', 'anómal', 'intrusión', 'dos', 'ddos',
-  'política', 'sistema de gestión', 'gestión de seguridad', 'responsabilidad', 'roles',
-  'evaluaci', 'riesgos', 'pruebas de seguridad', 'gestión de cambios', 'supervisión',
-  'verificaci', 'confidencialidad', 'ciclo de vida',
-];
+// ── Definición curada ────────────────────────────────────────────────────────
+// risks: códigos de amenaza MAGERIT (vacío = riesgo transversal / no específico).
+// controls: nombres de control asociados.
 
-function matchesAny(text: string, keywords: string[]): boolean {
-  const t = text.toLowerCase();
-  return keywords.some(k => t.includes(k));
+interface CuratedQuestion {
+  q: string;
+  risks: string[];
+  controls: string[];
 }
 
-/** Rellena mitigaImpacto/mitigaProbabilidad si no están definidos explícitamente. */
-function enrichQuestion(q: Question): Question {
-  let mitigaImpacto      = q.mitigaImpacto;
-  let mitigaProbabilidad = q.mitigaProbabilidad;
-  if (mitigaImpacto === undefined && mitigaProbabilidad === undefined) {
-    mitigaImpacto      = matchesAny(q.text, IMPACT_KEYWORDS);
-    mitigaProbabilidad = matchesAny(q.text, PROB_KEYWORDS);
-    // Si no encaja en ninguna categoría, se asume que mitiga ambas (conservador).
-    if (!mitigaImpacto && !mitigaProbabilidad) {
-      mitigaImpacto = true;
-      mitigaProbabilidad = true;
-    }
-  }
-  return { ...q, mitigaImpacto: !!mitigaImpacto, mitigaProbabilidad: !!mitigaProbabilidad };
-}
-
-const RAW_QUESTIONNAIRES: Record<string, Question[]> = {
-
-  // ── Adquisición IT de Bajo Impacto ──────────────────────────────────────────
-  'low-impact-it': [
-    { id: 'li-01', domain: 'tecnologico',  text: '¿La solución incorpora autenticación segura, control de acceso basado en roles y gestión de privilegios administrativos?', riskRefs: ['A.5','A.6','A.11'],       safeguardRefs: ['iso-8.5','iso-5.15','iso-5.18'],       responsibility: 'ambos'     },
-    { id: 'li-02', domain: 'tecnologico',  text: '¿La solución genera, protege y monitoriza registros de actividad y eventos de seguridad?',                                 riskRefs: ['A.13','E.3'],              safeguardRefs: ['iso-8.15','iso-8.16','iso-5.24'],       responsibility: 'proveedor' },
-    { id: 'li-03', domain: 'tecnologico',  text: '¿La solución contempla configuraciones seguras, actualización de software y gestión de vulnerabilidades?',                  riskRefs: ['E.4','E.20','E.21'],       safeguardRefs: ['iso-8.8','iso-8.9','iso-8.32'],         responsibility: 'proveedor' },
-    { id: 'li-04', domain: 'tecnologico',  text: '¿La solución protege la información mediante cifrado, control de accesos y eliminación segura de datos?',                  riskRefs: ['A.14','A.19','E.19'],      safeguardRefs: ['iso-8.24','iso-8.10','iso-8.12'],       responsibility: 'ambos'     },
-    { id: 'li-05', domain: 'tecnologico',  text: '¿La solución dispone de mecanismos de backup, recuperación y continuidad operativa?',                                      riskRefs: ['E.18','I.5','I.8'],        safeguardRefs: ['iso-8.13','iso-8.14','iso-5.30'],       responsibility: 'proveedor' },
-    { id: 'li-06', domain: 'organizativo', text: '¿Existen responsabilidades de seguridad claramente definidas entre cliente y proveedor?',                                  riskRefs: ['E.7'],                     safeguardRefs: ['iso-5.2','iso-5.19'],                   responsibility: 'ambos'     },
-    { id: 'li-07', domain: 'personas',     text: '¿El personal con acceso a la solución recibe formación y concienciación en seguridad?',                                    riskRefs: ['E.1','A.30'],              safeguardRefs: ['iso-6.3','iso-6.8'],                    responsibility: 'ambos'     },
-    { id: 'li-08', domain: 'fisico',       text: '¿La infraestructura o equipos asociados poseen controles físicos y ambientales adecuados?',                                riskRefs: ['N.1','I.6','A.25'],        safeguardRefs: ['iso-7.1','iso-7.11'],                   responsibility: 'cliente'   },
-    { id: 'li-09', domain: 'tecnologico',  text: '¿La solución protege frente a malware y actividades anómalas?',                                                            riskRefs: ['A.8','A.24'],              safeguardRefs: ['iso-8.7','iso-8.16'],                   responsibility: 'proveedor' },
-    { id: 'li-10', domain: 'organizativo', text: '¿La solución contempla auditorías, revisiones periódicas y trazabilidad de acciones?',                                    riskRefs: ['A.13','E.20'],             safeguardRefs: ['iso-5.35','iso-5.36','iso-8.15'],       responsibility: 'ambos'     },
-    { id: 'li-11', domain: 'tecnologico',  text: '¿La solución permite gestión segura del ciclo de vida de usuarios y accesos?',                                             riskRefs: ['A.11','A.6'],              safeguardRefs: ['iso-5.16','iso-5.18'],                  responsibility: 'ambos'     },
-    { id: 'li-12', domain: 'organizativo', text: '¿La solución contempla gestión y notificación de incidentes de seguridad?',                                               riskRefs: ['E.7'],                     safeguardRefs: ['iso-5.24','iso-5.25','iso-5.26'],       responsibility: 'ambos'     },
-    { id: 'li-13', domain: 'tecnologico',  text: '¿La solución garantiza disponibilidad mínima y recuperación ante fallos?',                                                 riskRefs: ['I.5','I.8'],               safeguardRefs: ['iso-8.14','iso-5.30'],                  responsibility: 'proveedor' },
-    { id: 'li-14', domain: 'tecnologico',  text: '¿La solución contempla protección de comunicaciones y servicios conectados?',                                              riskRefs: ['A.9','A.14'],              safeguardRefs: ['iso-8.20','iso-8.22'],                  responsibility: 'proveedor' },
-    { id: 'li-15', domain: 'organizativo', text: '¿La solución permite exportación o recuperación de información al finalizar su uso?',                                     riskRefs: ['E.18'],                    safeguardRefs: ['iso-5.30','iso-8.13'],                  responsibility: 'proveedor' },
-  ],
-
-  // ── SaaS ────────────────────────────────────────────────────────────────────
+const CURATED: Record<string, CuratedQuestion[]> = {
   'saas': [
-    { id: 'ss-01', domain: 'tecnologico',  text: '¿La solución incorpora autenticación segura, MFA y control de privilegios administrativos?',                               riskRefs: ['A.5','A.6','A.11'],       safeguardRefs: ['iso-8.5','iso-5.15','iso-5.18'],        responsibility: 'ambos'     },
-    { id: 'ss-02', domain: 'tecnologico',  text: '¿La solución genera, protege y monitoriza logs y eventos de seguridad?',                                                   riskRefs: ['A.13','E.3'],              safeguardRefs: ['iso-8.15','iso-8.16','iso-5.24'],       responsibility: 'proveedor' },
-    { id: 'ss-03', domain: 'tecnologico',  text: '¿La solución protege la información mediante cifrado y protección de comunicaciones?',                                     riskRefs: ['A.14','A.19'],             safeguardRefs: ['iso-8.24','iso-8.20'],                  responsibility: 'proveedor' },
-    { id: 'ss-04', domain: 'tecnologico',  text: '¿La solución contempla segregación lógica entre clientes y entornos?',                                                    riskRefs: ['A.11'],                    safeguardRefs: ['iso-8.22','iso-5.15'],                  responsibility: 'proveedor' },
-    { id: 'ss-05', domain: 'tecnologico',  text: '¿La solución contempla backup, recuperación y continuidad operativa?',                                                     riskRefs: ['E.18','I.5','I.8'],        safeguardRefs: ['iso-8.13','iso-8.14','iso-5.29','iso-5.30'], responsibility: 'proveedor' },
-    { id: 'ss-06', domain: 'tecnologico',  text: '¿La solución incorpora gestión de vulnerabilidades y configuraciones seguras?',                                            riskRefs: ['E.4','E.20'],              safeguardRefs: ['iso-8.8','iso-8.9'],                    responsibility: 'proveedor' },
-    { id: 'ss-07', domain: 'organizativo', text: '¿Existen responsabilidades de seguridad definidas entre cliente y proveedor?',                                             riskRefs: ['E.7'],                     safeguardRefs: ['iso-5.2','iso-5.19'],                   responsibility: 'ambos'     },
-    { id: 'ss-08', domain: 'personas',     text: '¿El personal con acceso al servicio recibe formación en seguridad?',                                                       riskRefs: ['E.1','A.30'],              safeguardRefs: ['iso-6.3','iso-6.8'],                    responsibility: 'ambos'     },
-    { id: 'ss-09', domain: 'fisico',       text: '¿La infraestructura física del proveedor posee controles ambientales y de acceso adecuados?',                             riskRefs: ['N.1','I.6','A.25'],        safeguardRefs: ['iso-7.1','iso-7.11'],                   responsibility: 'proveedor' },
-    { id: 'ss-10', domain: 'tecnologico',  text: '¿La solución protege frente a malware, accesos externos y actividad anómala?',                                            riskRefs: ['A.8','A.24'],              safeguardRefs: ['iso-8.7','iso-8.16','iso-8.20'],        responsibility: 'proveedor' },
-    { id: 'ss-11', domain: 'organizativo', text: '¿La solución contempla gestión y notificación de incidentes de seguridad?',                                               riskRefs: ['E.7'],                     safeguardRefs: ['iso-5.24','iso-5.25','iso-5.26'],       responsibility: 'proveedor' },
-    { id: 'ss-12', domain: 'tecnologico',  text: '¿La solución contempla privacidad, protección y eliminación segura de datos?',                                            riskRefs: ['A.19','E.19'],             safeguardRefs: ['iso-5.34','iso-8.10','iso-8.12'],       responsibility: 'ambos'     },
-    { id: 'ss-13', domain: 'organizativo', text: '¿La solución permite auditoría, revisiones y trazabilidad de acciones?',                                                  riskRefs: ['A.13'],                    safeguardRefs: ['iso-5.35','iso-5.36','iso-8.15'],       responsibility: 'ambos'     },
-    { id: 'ss-14', domain: 'tecnologico',  text: '¿La solución permite gestión segura del ciclo de vida de accesos y usuarios?',                                            riskRefs: ['A.6','A.11'],              safeguardRefs: ['iso-5.16','iso-5.18'],                  responsibility: 'ambos'     },
-    { id: 'ss-15', domain: 'tecnologico',  text: '¿La solución contempla controles sobre APIs o integraciones externas?',                                                   riskRefs: ['A.11','A.14'],             safeguardRefs: ['iso-5.19','iso-5.21','iso-8.20'],       responsibility: 'ambos'     },
+    { q: '¿La solución soporta MFA?', risks: ['A.5', 'A.6', 'A.11'], controls: ['Identificación y autenticación', 'Control de acceso lógico'] },
+    { q: '¿Permite integración SSO?', risks: ['A.5', 'A.11'], controls: ['Identificación y autenticación'] },
+    { q: '¿Registra trazas de auditoría?', risks: ['A.13', 'A.11'], controls: ['Registro y auditoría'] },
+    { q: '¿La información se cifra en tránsito y reposo?', risks: ['A.14', 'A.19', 'E.19'], controls: ['Cifrado', 'Protección de comunicaciones'] },
+    { q: '¿Existen copias de seguridad?', risks: ['E.18', 'I.5'], controls: ['Backup'] },
+    { q: '¿Existe gestión de vulnerabilidades?', risks: ['E.20'], controls: ['Gestión de vulnerabilidades'] },
+    { q: '¿Se realizan pruebas de seguridad?', risks: ['E.20', 'A.22'], controls: ['Análisis de vulnerabilidades'] },
+    { q: '¿Existe segregación de funciones?', risks: ['A.6'], controls: ['Segregación de tareas'] },
+    { q: '¿Existe plan de continuidad?', risks: ['I.8', 'I.9', 'A.24'], controls: ['Continuidad de negocio'] },
+    { q: '¿Existe plan DRP?', risks: ['I.5', 'I.8', 'N.1'], controls: ['Recuperación ante desastres'] },
+    { q: '¿Se monitorizan eventos de seguridad?', risks: ['A.11', 'A.24'], controls: ['IDS/IPS', 'Monitorización'] },
+    { q: '¿Existe retención de datos configurable?', risks: ['E.18', 'A.19'], controls: ['Protección de la información'] },
+    { q: '¿Se notifican incidentes?', risks: [], controls: ['Gestión de incidencias'] },
+    { q: '¿Puede exportarse la información?', risks: ['E.18', 'A.19'], controls: ['Protección de la información'] },
+    { q: '¿Dispone de certificaciones?', risks: [], controls: ['Gobierno y cumplimiento'] },
   ],
 
-  // ── SaaS con IA ─────────────────────────────────────────────────────────────
   'saas-ai': [
-    { id: 'sa-01', domain: 'tecnologico',  text: '¿La solución incorpora autenticación robusta (MFA, políticas de contraseñas, SSO)?',                                      riskRefs: ['A.5','A.6'],               safeguardRefs: ['iso-5.15','iso-5.16','iso-5.18'],       responsibility: 'ambos'     },
-    { id: 'sa-02', domain: 'tecnologico',  text: '¿Existe segregación lógica de datos entre clientes o usuarios?',                                                           riskRefs: ['A.11'],                    safeguardRefs: ['iso-8.22','iso-8.20'],                  responsibility: 'proveedor' },
-    { id: 'sa-03', domain: 'tecnologico',  text: '¿La información se cifra durante el tránsito y almacenamiento?',                                                           riskRefs: ['A.14','A.19'],             safeguardRefs: ['iso-8.24'],                             responsibility: 'ambos'     },
-    { id: 'sa-04', domain: 'tecnologico',  text: '¿Existen copias de seguridad verificadas y procedimientos de recuperación?',                                               riskRefs: ['E.18','I.8'],              safeguardRefs: ['iso-8.13','iso-5.30'],                  responsibility: 'proveedor' },
-    { id: 'sa-05', domain: 'tecnologico',  text: '¿Se realiza gestión periódica de vulnerabilidades y actualizaciones de seguridad?',                                        riskRefs: ['E.20','A.22'],             safeguardRefs: ['iso-8.8','iso-8.9'],                    responsibility: 'proveedor' },
-    { id: 'sa-06', domain: 'tecnologico',  text: '¿Se registran y monitorizan eventos relevantes de seguridad?',                                                             riskRefs: ['A.13','E.3'],              safeguardRefs: ['iso-8.15','iso-8.16'],                  responsibility: 'proveedor' },
-    { id: 'sa-07', domain: 'organizativo', text: '¿Existe un procedimiento formal de gestión de incidentes?',                                                                riskRefs: ['E.7'],                     safeguardRefs: ['iso-5.24'],                             responsibility: 'proveedor' },
-    { id: 'sa-08', domain: 'organizativo', text: '¿Se han definido roles y responsabilidades de seguridad para usuarios y administradores?',                                 riskRefs: ['E.7'],                     safeguardRefs: ['iso-5.2'],                              responsibility: 'ambos'     },
-    { id: 'sa-09', domain: 'personas',     text: '¿Los usuarios reciben formación en ciberseguridad y protección de datos?',                                                 riskRefs: ['E.1','A.30'],              safeguardRefs: ['iso-6.3','iso-6.8'],                    responsibility: 'ambos'     },
-    { id: 'sa-10', domain: 'organizativo', text: '¿La organización evalúa la seguridad de proveedores y terceros integrados?',                                               riskRefs: ['A.11','E.7'],              safeguardRefs: ['iso-5.19'],                             responsibility: 'ambos'     },
-    { id: 'sa-11', domain: 'fisico',       text: '¿La infraestructura dispone de controles físicos adecuados?',                                                              riskRefs: ['N.1','I.6','A.25'],        safeguardRefs: ['iso-7.1','iso-7.11'],                   responsibility: 'proveedor' },
-    { id: 'sa-12', domain: 'tecnologico',  text: '¿Existen procedimientos para la eliminación segura de información?',                                                       riskRefs: ['A.19','E.19'],             safeguardRefs: ['iso-8.10'],                             responsibility: 'ambos'     },
-    { id: 'sa-13', domain: 'tecnologico',  text: '¿La solución permite trazabilidad y auditoría de acciones realizadas por usuarios y administradores?',                     riskRefs: ['A.13'],                    safeguardRefs: ['iso-8.15','iso-5.35'],                  responsibility: 'ambos'     },
-    { id: 'sa-14', domain: 'tecnologico',  text: '¿La solución utiliza modelos de IA generativa o predictiva para procesar información?',                                    riskRefs: ['E.15','A.22'],             safeguardRefs: ['iso-5.23','iso-8.28'],                  responsibility: 'ambos'     },
-    { id: 'sa-15', domain: 'tecnologico',  text: '¿Existen controles para evitar que datos sensibles sean enviados a modelos de IA no autorizados?',                         riskRefs: ['E.14','A.19'],             safeguardRefs: ['iso-5.34','iso-8.12','iso-8.24'],       responsibility: 'ambos'     },
-    { id: 'sa-16', domain: 'tecnologico',  text: '¿Se conservan registros de prompts, respuestas y acciones realizadas por la IA cuando resulte aplicable?',                riskRefs: ['A.13','E.3'],              safeguardRefs: ['iso-8.15','iso-8.16'],                  responsibility: 'proveedor' },
-    { id: 'sa-17', domain: 'organizativo', text: '¿Existe supervisión humana sobre decisiones relevantes generadas por la IA?',                                              riskRefs: ['E.15','E.7'],              safeguardRefs: ['iso-5.2'],                              responsibility: 'ambos'     },
+    { q: '¿Puede deshabilitarse el entrenamiento con datos del cliente?', risks: ['A.19', 'E.19'], controls: ['Protección de la información'] },
+    { q: '¿Existe separación lógica entre clientes?', risks: ['A.11', 'A.19'], controls: ['Control de acceso'] },
+    { q: '¿Los prompts se cifran en tránsito?', risks: ['A.14'], controls: ['Protección de comunicaciones'] },
+    { q: '¿Los datos almacenados se cifran?', risks: ['A.19'], controls: ['Cifrado'] },
+    { q: '¿Existen controles anti fuga de datos?', risks: ['E.19'], controls: ['DLP'] },
+    { q: '¿Se registran las interacciones con IA?', risks: ['A.13'], controls: ['Registro y auditoría'] },
+    { q: '¿Puede auditarse el uso de la IA?', risks: ['A.13', 'A.11'], controls: ['Auditoría'] },
+    { q: '¿Existe evaluación de riesgos IA?', risks: [], controls: ['Gestión de riesgos'] },
+    { q: '¿Existe control de acceso RBAC?', risks: ['A.11', 'A.6'], controls: ['Control de acceso'] },
+    { q: '¿Se restringen tipos de datos enviados?', risks: ['A.19'], controls: ['Protección información'] },
+    { q: '¿Existe detección de uso indebido?', risks: ['A.30'], controls: ['Monitorización'] },
+    { q: '¿Existe transparencia sobre entrenamiento?', risks: [], controls: ['Gobierno IA'] },
+    { q: '¿Hay mitigación de alucinaciones?', risks: ['E.1'], controls: ['Control de calidad IA'] },
+    { q: '¿Existe supervisión humana?', risks: ['E.1', 'E.2'], controls: ['Gobierno IA'] },
+    { q: '¿Existe gestión de incidentes IA?', risks: [], controls: ['Gestión de incidencias'] },
   ],
 
-  // ── PaaS / IaaS ─────────────────────────────────────────────────────────────
   'paas-iaas': [
-    { id: 'pi-01', domain: 'tecnologico',  text: '¿La infraestructura incorpora autenticación segura y gestión de privilegios administrativos?',                             riskRefs: ['A.5','A.6'],               safeguardRefs: ['iso-8.5','iso-5.15','iso-5.18'],        responsibility: 'ambos'     },
-    { id: 'pi-02', domain: 'tecnologico',  text: '¿La plataforma registra y monitoriza eventos y actividades de seguridad?',                                                 riskRefs: ['A.13','E.3'],              safeguardRefs: ['iso-8.15','iso-8.16'],                  responsibility: 'proveedor' },
-    { id: 'pi-03', domain: 'tecnologico',  text: '¿La infraestructura protege comunicaciones, redes y segmentación de entornos?',                                           riskRefs: ['A.9','A.14'],              safeguardRefs: ['iso-8.20','iso-8.22','iso-8.24'],       responsibility: 'proveedor' },
-    { id: 'pi-04', domain: 'tecnologico',  text: '¿La plataforma contempla backup, redundancia y recuperación ante desastre?',                                              riskRefs: ['E.18','I.5','N.1'],        safeguardRefs: ['iso-8.13','iso-8.14','iso-5.29','iso-5.30'], responsibility: 'proveedor' },
-    { id: 'pi-05', domain: 'tecnologico',  text: '¿La infraestructura contempla gestión de vulnerabilidades y configuraciones seguras?',                                    riskRefs: ['E.4','E.20'],              safeguardRefs: ['iso-8.8','iso-8.9'],                    responsibility: 'ambos'     },
-    { id: 'pi-06', domain: 'organizativo', text: '¿Existen responsabilidades de seguridad definidas entre proveedor y cliente?',                                            riskRefs: ['E.7'],                     safeguardRefs: ['iso-5.2','iso-5.19'],                   responsibility: 'ambos'     },
-    { id: 'pi-07', domain: 'personas',     text: '¿Los administradores y usuarios reciben formación de seguridad cloud?',                                                    riskRefs: ['E.1','A.30'],              safeguardRefs: ['iso-6.3','iso-6.8'],                    responsibility: 'ambos'     },
-    { id: 'pi-08', domain: 'fisico',       text: '¿La infraestructura física posee controles de acceso y protección ambiental adecuados?',                                  riskRefs: ['N.1','I.6','A.25'],        safeguardRefs: ['iso-7.1','iso-7.11'],                   responsibility: 'proveedor' },
-    { id: 'pi-09', domain: 'tecnologico',  text: '¿La solución protege frente a malware, accesos externos y ataques DoS/DDoS?',                                             riskRefs: ['A.8','A.24'],              safeguardRefs: ['iso-8.7','iso-8.16','iso-8.20'],        responsibility: 'proveedor' },
-    { id: 'pi-10', domain: 'organizativo', text: '¿La plataforma contempla gestión y notificación de incidentes cloud?',                                                    riskRefs: ['E.7'],                     safeguardRefs: ['iso-5.24','iso-5.25','iso-5.26'],       responsibility: 'proveedor' },
-    { id: 'pi-11', domain: 'tecnologico',  text: '¿La infraestructura contempla privacidad, protección y eliminación segura de información?',                               riskRefs: ['A.19','E.19'],             safeguardRefs: ['iso-5.34','iso-8.10','iso-8.12'],       responsibility: 'ambos'     },
-    { id: 'pi-12', domain: 'organizativo', text: '¿La solución permite auditoría, revisión y trazabilidad de acciones administrativas?',                                    riskRefs: ['A.13'],                    safeguardRefs: ['iso-5.35','iso-5.36','iso-8.15'],       responsibility: 'ambos'     },
-    { id: 'pi-13', domain: 'tecnologico',  text: '¿La plataforma contempla gestión segura del ciclo de vida de accesos?',                                                   riskRefs: ['A.11'],                    safeguardRefs: ['iso-5.16','iso-5.18'],                  responsibility: 'ambos'     },
-    { id: 'pi-14', domain: 'tecnologico',  text: '¿La solución contempla controles sobre APIs, integraciones y terceros?',                                                  riskRefs: ['A.11','A.14'],             safeguardRefs: ['iso-5.19','iso-5.21','iso-8.20'],       responsibility: 'ambos'     },
-    { id: 'pi-15', domain: 'tecnologico',  text: '¿La solución garantiza disponibilidad y continuidad de servicios críticos?',                                              riskRefs: ['I.8','A.24'],              safeguardRefs: ['iso-5.30','iso-8.14'],                  responsibility: 'proveedor' },
+    { q: '¿MFA para administradores?', risks: ['A.5', 'A.6', 'A.11'], controls: ['Autenticación'] },
+    { q: '¿Existe separación de entornos?', risks: ['E.21'], controls: ['Gestión de cambios'] },
+    { q: '¿Se generan logs detallados?', risks: ['A.13'], controls: ['Auditoría'] },
+    { q: '¿Se monitorizan accesos privilegiados?', risks: ['A.6'], controls: ['Auditoría'] },
+    { q: '¿Existe cifrado en tránsito?', risks: ['A.14'], controls: ['Protección comunicaciones'] },
+    { q: '¿Existe cifrado en reposo?', risks: ['A.19'], controls: ['Cifrado'] },
+    { q: '¿Protección frente a DDoS?', risks: ['A.24'], controls: ['Protección servicios'] },
+    { q: '¿Monitorización continua?', risks: ['A.24', 'I.8'], controls: ['Monitorización'] },
+    { q: '¿Gestión de vulnerabilidades?', risks: ['E.20'], controls: ['Vulnerability Management'] },
+    { q: '¿Backup automatizado?', risks: ['E.18'], controls: ['Backup'] },
+    { q: '¿Recuperación ante desastres?', risks: ['I.5', 'N.1'], controls: ['DRP'] },
+    { q: '¿Segmentación de red?', risks: ['A.11'], controls: ['Control acceso red'] },
+    { q: '¿Monitorización SIEM?', risks: ['A.11', 'A.24'], controls: ['SIEM'] },
+    { q: '¿Protección APIs?', risks: ['A.22'], controls: ['Protección aplicaciones'] },
+    { q: '¿Detección de configuraciones inseguras?', risks: ['E.4'], controls: ['Hardening'] },
   ],
 
-  // ── IT Outsourcing ───────────────────────────────────────────────────────────
   'it-outsourcing': [
-    { id: 'io-01', domain: 'organizativo', text: '¿Existen responsabilidades y acuerdos de seguridad definidos entre cliente y proveedor?',                                 riskRefs: ['E.7'],                     safeguardRefs: ['iso-5.2','iso-5.19','iso-5.20'],        responsibility: 'ambos'     },
-    { id: 'io-02', domain: 'tecnologico',  text: '¿El proveedor utiliza autenticación segura y gestión de privilegios?',                                                     riskRefs: ['A.5','A.6'],               safeguardRefs: ['iso-8.5','iso-5.15','iso-5.18'],        responsibility: 'proveedor' },
-    { id: 'io-03', domain: 'tecnologico',  text: '¿Las acciones realizadas por terceros son registradas y monitorizadas?',                                                   riskRefs: ['A.13','E.3'],              safeguardRefs: ['iso-8.15','iso-8.16'],                  responsibility: 'proveedor' },
-    { id: 'io-04', domain: 'tecnologico',  text: '¿La información compartida se protege mediante cifrado y controles de comunicación segura?',                              riskRefs: ['A.14','A.19'],             safeguardRefs: ['iso-8.24','iso-8.20'],                  responsibility: 'ambos'     },
-    { id: 'io-05', domain: 'tecnologico',  text: '¿El proveedor contempla backup, recuperación y continuidad del servicio?',                                                riskRefs: ['E.18','I.8'],              safeguardRefs: ['iso-8.13','iso-8.14','iso-5.30'],       responsibility: 'proveedor' },
-    { id: 'io-06', domain: 'tecnologico',  text: '¿El proveedor contempla gestión de vulnerabilidades y configuraciones seguras?',                                          riskRefs: ['E.4','E.20'],              safeguardRefs: ['iso-8.8','iso-8.9'],                    responsibility: 'proveedor' },
-    { id: 'io-07', domain: 'personas',     text: '¿El personal del proveedor recibe formación y concienciación en seguridad?',                                              riskRefs: ['E.1','A.30'],              safeguardRefs: ['iso-6.3','iso-6.8'],                    responsibility: 'proveedor' },
-    { id: 'io-08', domain: 'fisico',       text: '¿Las instalaciones del proveedor poseen controles físicos y ambientales adecuados?',                                      riskRefs: ['N.1','A.25'],              safeguardRefs: ['iso-7.1','iso-7.11'],                   responsibility: 'proveedor' },
-    { id: 'io-09', domain: 'tecnologico',  text: '¿El proveedor protege frente a malware, accesos externos y actividad anómala?',                                           riskRefs: ['A.8','A.24'],              safeguardRefs: ['iso-8.7','iso-8.16','iso-8.20'],        responsibility: 'proveedor' },
-    { id: 'io-10', domain: 'organizativo', text: '¿Existen procedimientos de gestión y notificación de incidentes de seguridad?',                                           riskRefs: ['E.7'],                     safeguardRefs: ['iso-5.24','iso-5.25','iso-5.26'],       responsibility: 'proveedor' },
-    { id: 'io-11', domain: 'tecnologico',  text: '¿La solución contempla privacidad, protección y eliminación segura de información?',                                      riskRefs: ['A.19','E.19'],             safeguardRefs: ['iso-5.34','iso-8.10','iso-8.12'],       responsibility: 'ambos'     },
-    { id: 'io-12', domain: 'organizativo', text: '¿La solución permite auditoría, revisión y trazabilidad de actividades realizadas por terceros?',                         riskRefs: ['A.13'],                    safeguardRefs: ['iso-5.35','iso-5.36','iso-8.15'],       responsibility: 'ambos'     },
-    { id: 'io-13', domain: 'tecnologico',  text: '¿La solución contempla gestión segura del ciclo de vida de accesos externos?',                                            riskRefs: ['A.11'],                    safeguardRefs: ['iso-5.16','iso-5.18'],                  responsibility: 'ambos'     },
-    { id: 'io-14', domain: 'tecnologico',  text: '¿Existen controles sobre proveedores secundarios, APIs o servicios externos integrados?',                                 riskRefs: ['A.11','A.14'],             safeguardRefs: ['iso-5.19','iso-5.21','iso-8.20'],       responsibility: 'ambos'     },
-    { id: 'io-15', domain: 'tecnologico',  text: '¿La solución garantiza disponibilidad y continuidad de servicios externalizados críticos?',                               riskRefs: ['I.8','A.24'],              safeguardRefs: ['iso-5.30','iso-8.14'],                  responsibility: 'proveedor' },
+    { q: '¿Existe política de seguridad?', risks: ['E.7'], controls: ['Gobierno'] },
+    { q: '¿Existen acuerdos de confidencialidad?', risks: ['A.19'], controls: ['Gestión personal'] },
+    { q: '¿Se gestionan altas y bajas?', risks: ['A.11'], controls: ['Gestión identidades'] },
+    { q: '¿Se aplica mínimo privilegio?', risks: ['A.6'], controls: ['Control acceso'] },
+    { q: '¿Se auditan accesos privilegiados?', risks: ['A.6'], controls: ['Auditoría'] },
+    { q: '¿Existe gestión de incidencias?', risks: [], controls: ['Gestión incidencias'] },
+    { q: '¿Existe formación en seguridad?', risks: ['A.30', 'E.1'], controls: ['Concienciación'] },
+    { q: '¿Existe segregación de funciones?', risks: ['A.6'], controls: ['Segregación'] },
+    { q: '¿Existe gestión de cambios?', risks: ['E.4', 'E.21'], controls: ['Gestión cambios'] },
+    { q: '¿Existe inventario de activos?', risks: ['E.25'], controls: ['Inventario'] },
+    { q: '¿Existe revocación inmediata de accesos?', risks: ['A.11'], controls: ['IAM'] },
+    { q: '¿Existe continuidad de negocio?', risks: ['I.8', 'I.9'], controls: ['Continuidad'] },
+    { q: '¿Existe DRP?', risks: ['N.1', 'I.5'], controls: ['DRP'] },
+    { q: '¿Se monitorizan actividades privilegiadas?', risks: ['A.6'], controls: ['Auditoría'] },
+    { q: '¿Existen auditorías externas?', risks: [], controls: ['Compliance'] },
+  ],
+
+  'low-impact-it': [
+    { q: '¿Existe autenticación?', risks: ['A.11'], controls: ['Control acceso'] },
+    { q: '¿Se pueden revocar accesos?', risks: ['A.11'], controls: ['IAM'] },
+    { q: '¿Existen logs básicos?', risks: ['A.13'], controls: ['Auditoría'] },
+    { q: '¿Existe gestión de incidencias?', risks: [], controls: ['Gestión incidencias'] },
+    { q: '¿Se protege la integridad de los datos?', risks: ['E.15'], controls: ['Integridad'] },
+    { q: '¿Existen copias de seguridad?', risks: ['E.18'], controls: ['Backup'] },
+    { q: '¿Se aplican parches?', risks: ['E.20'], controls: ['Vulnerabilidades'] },
+    { q: '¿Se usa cifrado en comunicaciones?', risks: ['A.14'], controls: ['Comunicaciones'] },
+    { q: '¿Existe protección antimalware?', risks: ['A.8'], controls: ['Antimalware'] },
+    { q: '¿Se identifican usuarios individualmente?', risks: ['A.11'], controls: ['IAM'] },
+    { q: '¿Existen controles administrativos?', risks: ['A.6'], controls: ['Control acceso'] },
+    { q: '¿Existe gestión de cambios?', risks: ['E.4'], controls: ['Gestión cambios'] },
+    { q: '¿Puede recuperarse información eliminada?', risks: ['E.18'], controls: ['Backup'] },
+    { q: '¿Existe monitorización de disponibilidad?', risks: ['I.8'], controls: ['Disponibilidad'] },
+    { q: '¿Existe contacto de seguridad?', risks: [], controls: ['Gestión incidencias'] },
   ],
 };
 
-// Cuestionarios enriquecidos con la mitigación impacto/probabilidad por pregunta.
-export const CATEGORY_QUESTIONNAIRES: Record<string, Question[]> = Object.fromEntries(
-  Object.entries(RAW_QUESTIONNAIRES).map(([cat, qs]) => [cat, qs.map(enrichQuestion)])
-);
+// ── Construcción de Question[] por categoría ────────────────────────────────
+function buildQuestionnaires(): Record<string, Question[]> {
+  const out: Record<string, Question[]> = {};
+  for (const [catId, items] of Object.entries(CURATED)) {
+    out[catId] = items.map((it, i) => ({
+      id: `${catId}-q${i + 1}`,
+      text: it.q,
+      domain: 'tecnologico',
+      riskRefs: it.risks,
+      safeguardRefs: it.controls,
+      responsibility: 'ambos',
+      controlId: '',
+      familia: '',
+      tipo: 'Preventivo',
+      mitigaImpacto: false,
+      mitigaProbabilidad: true,
+    }));
+  }
+  return out;
+}
+
+export const CATEGORY_QUESTIONNAIRES: Record<string, Question[]> = buildQuestionnaires();

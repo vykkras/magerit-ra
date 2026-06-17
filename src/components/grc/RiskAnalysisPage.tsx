@@ -7,8 +7,9 @@ import {
   type Zone, type DimensionKey,
 } from '../../data/aarrScale';
 import {
-  RIESGOS_CATALOG, RIESGOS_BY_CODE, FACTOR_GROUPS,
+  RIESGOS_CATALOG, FACTOR_GROUPS,
 } from '../../data/riesgosCatalog';
+import { CONTROLES_CATALOG } from '../../data/controlesCatalog';
 import type {
   ControlTipo, ControlImplementacion, ControlGrado, ControlFrecuencia,
 } from '../../types/control.types';
@@ -21,6 +22,10 @@ const FRECS: ControlFrecuencia[] = ['AdHoc', 'Anual', 'Semestral', 'Trimestral',
 const IMPL_LABEL: Record<ControlImplementacion, string> = {
   Manual: 'Manual', Semiautomatico: 'Semiautomático', Automatizado: 'Automatizado',
 };
+
+// Catálogo de controles (Excel) para el selector de controles.
+const CONTROL_NOMBRES = Array.from(new Set(CONTROLES_CATALOG.map(c => c.nombre)));
+const CONTROL_BY_NOMBRE = new Map(CONTROLES_CATALOG.map(c => [c.nombre, c]));
 
 function ZoneBadge({ zone }: { zone: Zone }) {
   const m = ZONE_META[zone];
@@ -45,6 +50,11 @@ export default function RiskAnalysisPage() {
 
   return (
     <div className={s.page}>
+
+      {/* Catálogo de controles para los selectores */}
+      <datalist id="controles-catalog">
+        {CONTROL_NOMBRES.map(n => <option key={n} value={n} />)}
+      </datalist>
 
       {/* Header */}
       <div className={s.headerCard}>
@@ -274,8 +284,13 @@ function RiskCard({
                   <input
                     className={s.miniInput}
                     value={c.nombre}
-                    placeholder="Nombre del control…"
-                    onChange={e => onUpdateControl(r.id, c.id, { nombre: e.target.value })}
+                    placeholder="Control del catálogo…"
+                    list="controles-catalog"
+                    onChange={e => {
+                      const nombre = e.target.value;
+                      const found = CONTROL_BY_NOMBRE.get(nombre);
+                      onUpdateControl(r.id, c.id, found ? { nombre, tipo: found.tipo } : { nombre });
+                    }}
                   />
                 </td>
                 <td>

@@ -196,6 +196,6 @@ export const useQuestionnaireStore = create<QuestionnaireStore>()(
         });
       },
     }),
-    { name: 'magerit-questionnaires-v1' }
+    { name: 'magerit-questionnaires-v3' }
   )
 );
