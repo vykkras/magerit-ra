@@ -82,7 +82,7 @@ function safeSheet(name: string) {
 }
 
 // ── Generación ───────────────────────────────────────────────────────────────
-export async function exportFullReport() {
+export async function buildWorkbook(): Promise<ExcelJS.Workbook> {
   const { overrides, specificOverrides } = useRiskControlStore.getState();
   const qs = useQuestionnaireStore.getState();
   const sol = useSolicitudStore.getState();
@@ -299,7 +299,11 @@ export async function exportFullReport() {
     categoryName: selName,
   });
 
-  // ── Descarga ──
+  return wb;
+}
+
+export async function exportFullReport() {
+  const wb = await buildWorkbook();
   const buf  = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url  = URL.createObjectURL(blob);
@@ -394,17 +398,17 @@ function buildAarrSheet(wb: ExcelJS.Workbook) {
   }
   const lastRow = ws.rowCount;
 
-  // Escala de color en riesgo inherente y residual
-  for (const col of ['L', 'Q']) {
+  // Escala de color en riesgo inherente y residual (prioridad ÚNICA por hoja)
+  ['L', 'Q'].forEach((col, i) => {
     ws.addConditionalFormatting({
       ref: `${col}${firstRow}:${col}${lastRow}`,
       rules: [{
-        type: 'colorScale', priority: 1,
+        type: 'colorScale', priority: i + 1,
         cfvo: [{ type: 'num', value: 0 }, { type: 'num', value: 5 }, { type: 'num', value: 15 }],
         color: [{ argb: 'FF63BE7B' }, { argb: 'FFFFEB84' }, { argb: 'FFF8696B' }],
       }],
     });
-  }
+  });
 
   // ── Leyenda y fórmulas ──
   ws.addRow([]);
@@ -438,13 +442,13 @@ function qSheet(name: string): string {
   return `'${name.replace(/'/g, "''")}'`;
 }
 
-function dataBar(ws: ExcelJS.Worksheet, ref: string) {
-  const rule = { type: 'dataBar', cfvo: [{ type: 'num', value: 0 }, { type: 'num', value: 100 }] };
-  ws.addConditionalFormatting({ ref, rules: [rule as unknown as ExcelJS.ConditionalFormattingRule] });
+// Barra de texto (REPT) a partir de un % (0-100) — robusto, sin formato condicional.
+function reptBar(pctRef: string): string {
+  return `REPT("█",ROUND(${pctRef}/5,0))`;
 }
 
 function buildGeneralSheet(ws: ExcelJS.Worksheet, catMeta: CatMeta[], pre: GeneralPrefill) {
-  ws.columns = [{ width: 24 }, { width: 42 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 }];
+  ws.columns = [{ width: 24 }, { width: 14 }, { width: 8 }, { width: 8 }, { width: 8 }, { width: 8 }, { width: 26 }];
   ws.views = [{ showGridLines: false }];
   titleRow(ws, 'Apreciación del Riesgo · Datos generales', 6);
   ws.addRow([]);
@@ -480,9 +484,9 @@ function buildGeneralSheet(ws: ExcelJS.Worksheet, catMeta: CatMeta[], pre: Gener
 
   ws.addRow([]);
 
-  // Gráfica: cumplimiento por categoría (barras de datos)
-  band(ws, 'Cumplimiento por categoría (gráfica)', 6);
-  headerRow(ws, ['Categoría', '% Cumplimiento', 'Sí', 'No', 'Pend.', 'Total']);
+  // Gráfica: cumplimiento por categoría (barras de texto REPT)
+  band(ws, 'Cumplimiento por categoría (gráfica)', 7);
+  headerRow(ws, ['Categoría', '% Cumpl.', 'Sí', 'No', 'Pend.', 'Total', 'Gráfica']);
   const helperFirst = ws.rowCount + 1;
   for (const c of catMeta) {
     const rng = `${qSheet(c.sheetName)}!B${c.firstAns}:B${c.lastAns}`;
@@ -494,18 +498,19 @@ function buildGeneralSheet(ws: ExcelJS.Worksheet, catMeta: CatMeta[], pre: Gener
     fcell(ws, `C${n}`, yes, 0);
     fcell(ws, `D${n}`, no, 0);
     fcell(ws, `E${n}`, `F${n}-C${n}-D${n}`, c.total);
+    fcell(ws, `G${n}`, reptBar(`B${n}`), '');
     row.getCell(2).numFmt = '0"%"';
     row.getCell(1).font = { bold: true };
+    row.getCell(7).font = { color: { argb: 'FF3B82F6' } };
     for (let i = 2; i <= 6; i++) row.getCell(i).alignment = { horizontal: 'center', vertical: 'middle' };
     row.eachCell(cc => { cc.border = { bottom: BORDER }; });
   }
-  const helperLast = ws.rowCount;
-  dataBar(ws, `B${helperFirst}:B${helperLast}`);
 
+  const helperLast = ws.rowCount;
   ws.addRow([]);
 
   // Resultado de la categoría seleccionada (vía VLOOKUP sobre la tabla anterior)
-  band(ws, 'Resultado de la categoría seleccionada', 6);
+  band(ws, 'Resultado de la categoría seleccionada', 7);
   const range = `$A$${helperFirst}:$F$${helperLast}`;
   const resLines: [string, string, string][] = [
     ['% Cumplimiento', `IFERROR(VLOOKUP(${catCell},${range},2,FALSE),0)`, '0"%"'],
@@ -514,17 +519,21 @@ function buildGeneralSheet(ws: ExcelJS.Worksheet, catMeta: CatMeta[], pre: Gener
     ['Pendientes', `IFERROR(VLOOKUP(${catCell},${range},5,FALSE),0)`, '0'],
     ['Total preguntas', `IFERROR(VLOOKUP(${catCell},${range},6,FALSE),0)`, '0'],
   ];
-  let cumplCell = '';
   for (const [label, formula, fmt] of resLines) {
     const r = ws.addRow([label, null]);
-    ws.mergeCells(`B${r.number}:F${r.number}`);
-    fcell(ws, `B${r.number}`, formula, 0);
+    const n = r.number;
+    fcell(ws, `B${n}`, formula, 0);
     r.getCell(1).font = { bold: true, color: { argb: 'FF1E3A5F' } };
     r.getCell(2).numFmt = fmt;
     r.getCell(2).font = { bold: true };
-    r.getCell(2).alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+    r.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
+    if (label === '% Cumplimiento') {
+      ws.mergeCells(`C${n}:G${n}`);
+      fcell(ws, `C${n}`, reptBar(`B${n}`), '');
+      r.getCell(3).font = { color: { argb: 'FF34D399' } };
+    } else {
+      ws.mergeCells(`C${n}:G${n}`);
+    }
     r.eachCell(c => { c.border = { bottom: BORDER }; });
-    if (label === '% Cumplimiento') cumplCell = `B${r.number}`;
   }
-  if (cumplCell) dataBar(ws, cumplCell);
 }
