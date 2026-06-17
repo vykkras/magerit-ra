@@ -14,10 +14,17 @@ interface GroupOverride {
 }
 
 interface RiskControlStore {
+  // Ediciones del mapeo por grupos (clave = id de grupo).
   overrides: Record<string, GroupOverride>;
   addControl: (groupId: string, control: string) => void;
   removeControl: (groupId: string, control: string) => void;
   resetGroup: (groupId: string) => void;
+
+  // Ediciones del mapeo por riesgo específico (clave = código de amenaza).
+  specificOverrides: Record<string, GroupOverride>;
+  addSpecificControl: (riskCode: string, control: string) => void;
+  removeSpecificControl: (riskCode: string, control: string) => void;
+  resetSpecificRisk: (riskCode: string) => void;
 }
 
 export const useRiskControlStore = create<RiskControlStore>()(
@@ -62,6 +69,48 @@ export const useRiskControlStore = create<RiskControlStore>()(
           const next = { ...st.overrides };
           delete next[groupId];
           return { overrides: next };
+        });
+      },
+
+      specificOverrides: {},
+
+      addSpecificControl(riskCode, control) {
+        const c = control.trim();
+        if (!c) return;
+        set(st => {
+          const ov = st.specificOverrides[riskCode] ?? { add: [], remove: [] };
+          return {
+            specificOverrides: {
+              ...st.specificOverrides,
+              [riskCode]: {
+                add: ov.add.includes(c) ? ov.add : [...ov.add, c],
+                remove: ov.remove.filter(x => x !== c),
+              },
+            },
+          };
+        });
+      },
+
+      removeSpecificControl(riskCode, control) {
+        set(st => {
+          const ov = st.specificOverrides[riskCode] ?? { add: [], remove: [] };
+          return {
+            specificOverrides: {
+              ...st.specificOverrides,
+              [riskCode]: {
+                add: ov.add.filter(x => x !== control),
+                remove: ov.remove.includes(control) ? ov.remove : [...ov.remove, control],
+              },
+            },
+          };
+        });
+      },
+
+      resetSpecificRisk(riskCode) {
+        set(st => {
+          const next = { ...st.specificOverrides };
+          delete next[riskCode];
+          return { specificOverrides: next };
         });
       },
     }),

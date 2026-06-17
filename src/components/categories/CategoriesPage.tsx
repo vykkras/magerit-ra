@@ -631,11 +631,11 @@ export default function CategoriesPage({ lockedCategoryId }: { lockedCategoryId?
   const allQuestions    = CATEGORY_QUESTIONNAIRES[category?.id] ?? [];
   const customRespCat   = customResponsibility[category?.id] ?? {};
 
-  // Only show questions where effective responsibility is proveedor or ambos
   function effectiveResp(q: Question): QuestionResponsibility {
     return customRespCat[q.id] ?? q.responsibility;
   }
-  const questions       = allQuestions.filter(q => effectiveResp(q) !== 'cliente');
+  // Se muestran todas las preguntas (cliente / proveedor / ambos).
+  const questions       = allQuestions;
 
   const categoryAnswers = answers[category?.id] ?? {};
   const critValue       = criticality[category?.id] ?? null;
