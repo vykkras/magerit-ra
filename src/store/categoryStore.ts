@@ -107,7 +107,7 @@ export const useCategoryStore = create<CategoryStore>()(
         }));
       },
     }),
-    { name: 'magerit-categories-v7' }
+    { name: 'magerit-categories-v8' }
   )
 );
 
