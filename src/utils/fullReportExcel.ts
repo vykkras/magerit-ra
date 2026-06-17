@@ -26,7 +26,7 @@ import {
 } from '../data/questionnaires.data';
 import { useRiskControlStore, effectiveControls } from '../store/riskControlStore';
 import { useQuestionnaireStore, type Answer } from '../store/questionnaireStore';
-import { PROB_LEVELS, DEGRAD_LEVELS, DIMENSIONS } from '../data/aarrScale';
+import { PROB_LEVELS, DEGRAD_LEVELS } from '../data/aarrScale';
 
 // ── Estilos ──────────────────────────────────────────────────────────────────
 const HEAD = 'FF0F172A';
@@ -110,8 +110,8 @@ export async function exportFullReport() {
       ['Mapeo Riesgo-Control', 'Controles que mitigan cada amenaza (17 grupos temáticos).'],
       ['Mapeo Riesgo específico', 'Salvaguardas y responsable por amenaza individual.'],
       ['Responsabilidades', 'Responsabilidad por pregunta: cliente / proveedor / ambos.'],
-      ['Cuestionario · (categoría)', 'Cuestionario Sí/No por categoría de solución (5 hojas).'],
-      ['AARR', 'Metodología y fórmulas de cálculo de la apreciación del riesgo.'],
+      ['Cuestionario · (categoría)', 'Cuestionario Sí/No por categoría (rellenable, con % de cumplimiento).'],
+      ['AARR', 'Evaluación del riesgo rellenable: dimensiones, criticidad, impacto, zona y residual (fórmulas).'],
     ];
     items.forEach(([h, d], i) => {
       const r = ws.addRow([i + 1, h, d]);
@@ -201,7 +201,7 @@ export async function exportFullReport() {
   {
     const ws = wb.addWorksheet('Responsabilidades');
     ws.columns = [{ width: 30 }, { width: 64 }, { width: 18 }];
-    titleRow(ws, 'Matriz de Responsabilidades (Cliente / Proveedor / Ambos)', 3);
+    titleRow(ws, 'Matriz de Responsabilidades (Proveedor / Ambos / Cliente)', 3);
     headerRow(ws, ['Categoría', 'Pregunta', 'Responsabilidad']);
     ws.views = [{ state: 'frozen', ySplit: 2 }];
     for (const { id: cat, name } of CATEGORY_ORDER) {
@@ -214,6 +214,7 @@ export async function exportFullReport() {
         rc.font = { bold: true, color: { argb: RESP_FONT[resp] } };
         rc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: RESP_FILL[resp] } };
         rc.alignment = { horizontal: 'center', vertical: 'middle' };
+        rc.dataValidation = { type: 'list', allowBlank: false, formulae: ['"Proveedor,Ambos,Cliente"'] };
         row.eachCell(c => { c.border = { bottom: BORDER }; });
       }
     }
@@ -243,6 +244,7 @@ export async function exportFullReport() {
       rows.push({ text: eq.text, ans: answerLabel(cAnswers[eq.id] ?? null), resp: null, risks: eq.riskRefs, ctrls: eq.safeguardRefs });
     }
 
+    const firstAns = ws.rowCount + 1;
     for (const r of rows) {
       const row = ws.addRow([r.text, r.ans, r.resp ? RESPONSIBILITY_LABELS[r.resp] : '', r.risks.join(', '), r.ctrls.join('; ')]);
       row.alignment = { vertical: 'middle', wrapText: true };
@@ -250,7 +252,7 @@ export async function exportFullReport() {
       const ac = row.getCell(2);
       ac.alignment = { horizontal: 'center', vertical: 'middle' };
       ac.font = { bold: !!r.ans };
-      if (r.ans) ac.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ANSWER_FILL[r.ans] } };
+      ac.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: r.ans ? ANSWER_FILL[r.ans] : INPUT_FILL } };
       if (r.resp) {
         const rc = row.getCell(3);
         rc.font = { bold: true, color: { argb: RESP_FONT[r.resp] } };
@@ -261,6 +263,20 @@ export async function exportFullReport() {
       // Validación Sí/No/N/A en la celda de respuesta
       ws.getCell(`B${row.number}`).dataValidation = { type: 'list', allowBlank: true, formulae: ['"Si,No,N/A"'] };
     }
+    const lastAns = ws.rowCount;
+
+    // Fila de cumplimiento (% de "Si" sobre preguntas respondidas)
+    const sumRow = ws.addRow(['Cumplimiento (% de "Si" sobre respondidas)', null]);
+    const sn = sumRow.number;
+    sumRow.getCell(1).font = { bold: true, color: { argb: 'FF0F172A' } };
+    sumRow.getCell(1).alignment = { horizontal: 'right', vertical: 'middle' };
+    const yes = `COUNTIF(B${firstAns}:B${lastAns},"Si")`;
+    const answered = `(COUNTIF(B${firstAns}:B${lastAns},"Si")+COUNTIF(B${firstAns}:B${lastAns},"No"))`;
+    fcell(ws, `B${sn}`, `IF(${answered}=0,"",ROUND(${yes}/${answered}*100,0))`, '');
+    sumRow.getCell(2).numFmt = '0"%"';
+    sumRow.getCell(2).font = { bold: true };
+    sumRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
+    sumRow.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
   }
 
   // ── 11. AARR ──
@@ -272,71 +288,124 @@ export async function exportFullReport() {
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
-  a.download = `informe-apreciacion-riesgo-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  a.download = `herramienta-apreciacion-riesgo-${new Date().toISOString().slice(0, 10)}.xlsx`;
   a.click();
   URL.revokeObjectURL(url);
 }
 
-// ── Hoja AARR (metodología + fórmulas) ───────────────────────────────────────
+// Color amarillo claro para celdas de ENTRADA (rellenar a mano).
+const INPUT_FILL = 'FFFEF9C3';
+
+function zona(v: number): string {
+  if (v <= 0.7) return 'Z3 Aceptable';
+  if (v <= 1.6) return 'Z4 Tolerable';
+  if (v <= 9.9) return 'Z2 A tratar';
+  return 'Z1 Inaceptable';
+}
+function zonaFormula(ref: string): string {
+  return `IF(${ref}<=0.7,"Z3 Aceptable",IF(${ref}<=1.6,"Z4 Tolerable",IF(${ref}<=9.9,"Z2 A tratar","Z1 Inaceptable")))`;
+}
+function fcell(ws: ExcelJS.Worksheet, addr: string, formula: string, result: number | string) {
+  ws.getCell(addr).value = { formula, result } as ExcelJS.CellFormulaValue;
+}
+
+// ── Hoja AARR — evaluación rellenable con fórmulas vivas ─────────────────────
 function buildAarrSheet(wb: ExcelJS.Workbook) {
   const ws = wb.addWorksheet('AARR');
-  ws.columns = [{ width: 22 }, { width: 22 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }];
-  titleRow(ws, 'Metodología de Apreciación del Riesgo (AARR) — Fórmulas', 6);
-  ws.addRow([]);
-
-  // Probabilidad
-  band(ws, 'A1 · Probabilidad inherente', 6);
-  headerRow(ws, ['Nivel', 'Nombre', 'Valor', 'Frecuencia', '', '']);
-  for (const p of PROB_LEVELS) if (p) ws.addRow([p.level, p.name, p.value, p.desc]);
-  ws.addRow([]);
-
-  // Impacto (degradación)
-  band(ws, 'A2 · Impacto (degradación)', 6);
-  headerRow(ws, ['Nivel', 'Nombre', 'Valor (%)', 'Rango', '', '']);
-  for (const d of DEGRAD_LEVELS) if (d) ws.addRow([d.level, d.name, d.value, d.desc]);
-  ws.addRow([]);
-
-  // Dimensiones
-  band(ws, 'Dimensiones de valoración (1-5)', 6);
-  headerRow(ws, ['Clave', 'Dimensión', 'Alias', '', '', '']);
-  for (const dim of DIMENSIONS) ws.addRow([dim.key, dim.name, dim.alias]);
-  ws.addRow([]);
-
-  // Fórmulas
-  band(ws, 'Fórmulas de cálculo', 6);
-  const formulas: [string, string][] = [
-    ['Criticidad (A5)', '= nivel(10^C + 10^I + 10^D + 10^A + 10^T)  →  1..5   (criterio más restrictivo de C/I/D/A/T)'],
-    ['Impacto inherente (A10)', '= Criticidad × Degradación / 100   →  1..5'],
-    ['Riesgo inherente (A4)', '= Probabilidad × Impacto inherente'],
-    ['Zonas de riesgo', 'Z3 Aceptable ≤ 0,7 · Z4 Tolerable ≤ 1,6 · Z2 A tratar ≤ 9,9 · Z1 Inaceptable > 9,9'],
-    ['Madurez del control (C5)', '= (C1 + C2 + C4) / 3      C1=Tipo · C2=Implementación · C4=Frecuencia'],
-    ['Eficacia del control (C13)', '= C5 × C3        C3 = Grado de implantación (L0=0 … L5=1)'],
-    ['Impacto residual (A6)', '= Impacto inherente − media(eficacia de los controles que mitigan el impacto)'],
-    ['Probabilidad residual (A7)', '= Probabilidad inherente − media(eficacia de los controles que mitigan la probabilidad)'],
-    ['Riesgo residual (A8)', '= Probabilidad residual × Impacto residual   (recalcula la zona)'],
-    ['NRA (Nivel de Riesgo Aceptable)', 'Z3 y Z4 → aceptables (no se tratan) · Z1 y Z2 → a tratar'],
+  ws.columns = [
+    { width: 9 }, { width: 38 },                                  // A,B
+    { width: 5 }, { width: 5 }, { width: 5 }, { width: 5 }, { width: 5 }, // C..G dims
+    { width: 11 }, { width: 11 }, { width: 12 }, { width: 12 }, { width: 11 }, { width: 15 }, // H..M
+    { width: 11 }, { width: 12 }, { width: 11 }, { width: 12 }, { width: 15 }, // N..R
   ];
-  headerRow(ws, ['Concepto', 'Fórmula', '', '', '', '']);
-  for (const [k, v] of formulas) {
+  titleRow(ws, 'AARR · Evaluación del Riesgo (rellena las celdas amarillas; el resto se calcula)', 18);
+  const help = ws.addRow(['Entrada (amarillo): C/I/D/A/T (1-5), Degradación %, Probabilidad y Madurez de controles %. El resto son fórmulas.']);
+  ws.mergeCells(`A${ws.rowCount}:R${ws.rowCount}`);
+  help.getCell(1).font = { italic: true, size: 10, color: { argb: 'FF64748B' } };
+
+  const hdr = headerRow(ws, [
+    'Código', 'Amenaza', 'C', 'I', 'D', 'A', 'T', 'Criticidad', 'Degrad. %', 'Impacto inh.',
+    'Probabilidad', 'Riesgo inh.', 'Zona inherente', 'Madurez %', 'Impacto resid.', 'Prob. resid.', 'Riesgo resid.', 'Zona residual',
+  ]);
+  hdr.height = 30;
+  ws.views = [{ state: 'frozen', xSplit: 2, ySplit: hdr.number }];
+
+  // Riesgos únicos (dedup por código) con valores inherentes por defecto del catálogo.
+  const seen = new Set<string>();
+  const risks = RIESGOS_CATALOG.filter(r => (seen.has(r.code) ? false : (seen.add(r.code), true)));
+
+  const firstRow = ws.rowCount + 1;
+  for (const r of risks) {
+    const degr = DEGRAD_LEVELS[r.degradacion]?.value ?? 50;
+    const prob = PROB_LEVELS[r.probabilidad]?.value ?? 1;
+    const dimDef = 3;
+    const crit = dimDef;                          // = MAX(C..T)
+    const impInh = +(crit * degr / 100).toFixed(2);
+    const riesgoInh = +(prob * impInh).toFixed(2);
+    const madurez = 0;
+    const impRes = +(impInh * (1 - madurez / 100)).toFixed(2);
+    const probRes = +(prob * (1 - madurez / 100)).toFixed(2);
+    const riesgoRes = +(impRes * probRes).toFixed(2);
+
+    const row = ws.addRow([r.code, r.name, dimDef, dimDef, dimDef, dimDef, dimDef, null, degr, null, prob, null, null, madurez, null, null, null, null]);
+    const n = row.number;
+    fcell(ws, `H${n}`, `MAX(C${n}:G${n})`, crit);
+    fcell(ws, `J${n}`, `H${n}*I${n}/100`, impInh);
+    fcell(ws, `L${n}`, `K${n}*J${n}`, riesgoInh);
+    fcell(ws, `M${n}`, zonaFormula(`L${n}`), zona(riesgoInh));
+    fcell(ws, `O${n}`, `J${n}*(1-N${n}/100)`, impRes);
+    fcell(ws, `P${n}`, `K${n}*(1-N${n}/100)`, probRes);
+    fcell(ws, `Q${n}`, `O${n}*P${n}`, riesgoRes);
+    fcell(ws, `R${n}`, zonaFormula(`Q${n}`), zona(riesgoRes));
+
+    row.alignment = { vertical: 'middle' };
+    row.getCell(1).font = { bold: true, color: { argb: 'FF1E3A5F' } };
+    row.getCell(2).alignment = { vertical: 'middle', wrapText: true };
+    // celdas de entrada en amarillo
+    for (const col of ['C', 'D', 'E', 'F', 'G', 'I', 'K', 'N']) {
+      ws.getCell(`${col}${n}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INPUT_FILL } };
+    }
+    row.eachCell((c, col) => { c.border = { bottom: BORDER }; if (col > 2) c.alignment = { ...c.alignment, horizontal: 'center' }; });
+
+    // Desplegables
+    for (const col of ['C', 'D', 'E', 'F', 'G']) {
+      ws.getCell(`${col}${n}`).dataValidation = { type: 'list', allowBlank: false, formulae: ['"1,2,3,4,5"'] };
+    }
+    ws.getCell(`I${n}`).dataValidation = { type: 'list', allowBlank: false, formulae: ['"5,15,50,80,100"'] };
+    ws.getCell(`K${n}`).dataValidation = { type: 'list', allowBlank: false, formulae: ['"0.1,0.3,1,2,3"'] };
+    ws.getCell(`N${n}`).dataValidation = { type: 'list', allowBlank: false, formulae: ['"0,10,50,80,90,100"'] };
+  }
+  const lastRow = ws.rowCount;
+
+  // Escala de color en riesgo inherente y residual
+  for (const col of ['L', 'Q']) {
+    ws.addConditionalFormatting({
+      ref: `${col}${firstRow}:${col}${lastRow}`,
+      rules: [{
+        type: 'colorScale', priority: 1,
+        cfvo: [{ type: 'num', value: 0 }, { type: 'num', value: 5 }, { type: 'num', value: 15 }],
+        color: [{ argb: 'FF63BE7B' }, { argb: 'FFFFEB84' }, { argb: 'FFF8696B' }],
+      }],
+    });
+  }
+
+  // ── Leyenda y fórmulas ──
+  ws.addRow([]);
+  band(ws, 'Cómo se calcula', 18);
+  const doc: [string, string][] = [
+    ['Criticidad', '= MAX(C, I, D, A, T)  (criterio más restrictivo)'],
+    ['Impacto inherente', '= Criticidad × Degradación / 100'],
+    ['Riesgo inherente', '= Probabilidad × Impacto inherente'],
+    ['Zonas', 'Z3 Aceptable ≤ 0,7 · Z4 Tolerable ≤ 1,6 · Z2 A tratar ≤ 9,9 · Z1 Inaceptable > 9,9'],
+    ['Madurez %', 'Eficacia agregada de los controles (L0=0 · L1=10 · L2=50 · L3=80 · L4=90 · L5=100)'],
+    ['Impacto / Prob. residual', '= valor inherente × (1 − Madurez/100)'],
+    ['Riesgo residual', '= Probabilidad residual × Impacto residual  (recalcula la zona)'],
+    ['NRA', 'Z3 y Z4 → aceptables (no se tratan) · Z1 y Z2 → a tratar'],
+  ];
+  for (const [k, v] of doc) {
     const row = ws.addRow([k, v]);
-    ws.mergeCells(`B${ws.rowCount}:F${ws.rowCount}`);
+    ws.mergeCells(`B${ws.rowCount}:R${ws.rowCount}`);
     row.getCell(1).font = { bold: true, color: { argb: 'FF1E3A5F' } };
     row.alignment = { vertical: 'middle', wrapText: true };
-    row.eachCell(c => { c.border = { bottom: BORDER }; });
   }
-  ws.addRow([]);
-
-  // Ejemplo en vivo (fórmulas Excel reales)
-  band(ws, 'Ejemplo (editable) — introduce Probabilidad e Impacto inherente', 6);
-  headerRow(ws, ['Probabilidad (0,1-3)', 'Impacto inh. (1-5)', 'Riesgo = P×I', 'Zona', '', '']);
-  const ex = ws.addRow([1, 4, null, null]);
-  const rn = ex.number;
-  ws.getCell(`C${rn}`).value = { formula: `A${rn}*B${rn}`, result: 4 } as ExcelJS.CellFormulaValue;
-  ws.getCell(`D${rn}`).value = {
-    formula: `IF(C${rn}<=0.7,"Z3 Aceptable",IF(C${rn}<=1.6,"Z4 Tolerable",IF(C${rn}<=9.9,"Z2 A tratar","Z1 Inaceptable")))`,
-    result: 'Z2 A tratar',
-  } as ExcelJS.CellFormulaValue;
-  ex.eachCell(c => { c.alignment = { horizontal: 'center' }; c.border = { bottom: BORDER }; });
-  ex.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF9C3' } };
-  ex.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF9C3' } };
 }
